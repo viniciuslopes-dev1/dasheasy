@@ -1,9 +1,21 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { type CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Sector, Tooltip } from 'recharts';
 import type { FinancialSummary } from '../../types/financial';
 import { formatCurrency, formatPercent } from '../../utils/formatCurrency';
 
 const COLORS = ['#2f6f5e', '#7b9f35', '#c68d2d', '#2d7b8f', '#8b6f47', '#5b7c99', '#9b5c4a', '#68745f', '#b35c7a', '#4f8f77', '#9a7b31'];
+const ACTIVE_SLICE_ANIMATION_MS = 220;
+const RADIAN = Math.PI / 180;
+
+interface ActiveSliceShapeProps {
+  cx: number;
+  cy: number;
+  innerRadius: number;
+  outerRadius: number;
+  startAngle: number;
+  endAngle: number;
+  fill: string;
+}
 
 interface PieChartPanelProps {
   title: string;
@@ -44,16 +56,101 @@ function formatCompactCurrency(cents: number): string {
   return formatCurrency(cents);
 }
 
+function renderActiveSlice(props: unknown, isDismissing: boolean, onToggleActive: () => void) {
+  const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill } = props as ActiveSliceShapeProps;
+  const middleAngle = (startAngle + endAngle) / 2;
+  const offsetX = Math.cos(-middleAngle * RADIAN) * 8;
+  const offsetY = Math.sin(-middleAngle * RADIAN) * 8;
+  const animationStyle = {
+    '--slice-dx': `${offsetX}px`,
+    '--slice-dy': `${offsetY}px`,
+  } as CSSProperties;
+
+  return (
+    <g
+      className={isDismissing ? 'active-pie-slice exiting' : 'active-pie-slice'}
+      style={animationStyle}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggleActive();
+      }}
+    >
+      <Sector
+        cx={cx}
+        cy={cy}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 7}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+        stroke="rgba(11, 17, 29, 0.9)"
+        strokeWidth={1}
+      />
+    </g>
+  );
+}
+
 export default function PieChartPanel({ title, items, totalLabel, selectionHint }: PieChartPanelProps) {
   const [showAllItems, setShowAllItems] = useState(false);
+  const [activeVisualKey, setActiveVisualKey] = useState<string | null>(null);
+  const [isDismissingActiveSlice, setIsDismissingActiveSlice] = useState(false);
+  const dismissTimeoutRef = useRef<number | null>(null);
   const positiveItemsCount = useMemo(() => items.filter((item) => item.totalCents > 0).length, [items]);
   const canShowAll = positiveItemsCount > 5;
   const data = useMemo(() => toChartData(items, showAllItems && canShowAll), [canShowAll, items, showAllItems]);
   const total = data.reduce((sum, item) => sum + item.totalCents, 0);
+  const activeVisualIndex = activeVisualKey ? data.findIndex((item) => item.key === activeVisualKey) : -1;
+  const activeVisualItem = activeVisualIndex >= 0 ? data[activeVisualIndex] : null;
+  const activePercent = activeVisualItem && total > 0 ? activeVisualItem.totalCents / total : 0;
+
+  function clearDismissTimeout() {
+    if (dismissTimeoutRef.current !== null) {
+      window.clearTimeout(dismissTimeoutRef.current);
+      dismissTimeoutRef.current = null;
+    }
+  }
+
+  function dismissActiveSlice() {
+    if (!activeVisualKey) {
+      return;
+    }
+
+    clearDismissTimeout();
+    setIsDismissingActiveSlice(true);
+    dismissTimeoutRef.current = window.setTimeout(() => {
+      setActiveVisualKey(null);
+      setIsDismissingActiveSlice(false);
+      dismissTimeoutRef.current = null;
+    }, ACTIVE_SLICE_ANIMATION_MS);
+  }
+
+  function selectSlice(key: string) {
+    if (activeVisualKey === key && !isDismissingActiveSlice) {
+      dismissActiveSlice();
+      return;
+    }
+
+    clearDismissTimeout();
+    setActiveVisualKey(key);
+    setIsDismissingActiveSlice(false);
+  }
 
   useEffect(() => {
     setShowAllItems(false);
   }, [items]);
+
+  useEffect(() => {
+    clearDismissTimeout();
+    setActiveVisualKey(null);
+    setIsDismissingActiveSlice(false);
+  }, [data]);
+
+  useEffect(
+    () => () => {
+      clearDismissTimeout();
+    },
+    [],
+  );
 
   return (
     <section className="chart-panel" aria-label={title}>
@@ -94,9 +191,22 @@ export default function PieChartPanel({ title, items, totalLabel, selectionHint 
                   strokeWidth={1}
                   label={({ percent }) => (percent && percent >= 0.045 ? formatPercent(percent).replace(',0', '') : '')}
                   labelLine={false}
+                  activeIndex={activeVisualIndex}
+                  activeShape={(props: unknown) => renderActiveSlice(props, isDismissingActiveSlice, dismissActiveSlice)}
+                  onClick={(_, index) => {
+                    const selectedKey = data[index]?.key;
+                    if (selectedKey) {
+                      selectSlice(selectedKey);
+                    }
+                  }}
                 >
                   {data.map((item, index) => (
-                    <Cell key={item.key} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={item.key}
+                      className="pie-slice"
+                      fill={COLORS[index % COLORS.length]}
+                      opacity={activeVisualKey && activeVisualKey !== item.key ? 0.5 : 1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
@@ -113,20 +223,27 @@ export default function PieChartPanel({ title, items, totalLabel, selectionHint 
               </PieChart>
             </ResponsiveContainer>
             <div className="donut-center">
-              <span>Total</span>
-              <strong>{formatCompactCurrency(total)}</strong>
+              <span>{activeVisualItem ? 'Selecionado' : 'Total'}</span>
+              <strong>{formatCompactCurrency(activeVisualItem?.totalCents ?? total)}</strong>
+              {activeVisualItem ? <small>{formatPercent(activePercent)}</small> : null}
             </div>
           </div>
           <div className={showAllItems && canShowAll ? 'chart-legend-list full' : 'chart-legend-list'}>
             {data.map((item, index) => {
               const percent = total > 0 ? item.totalCents / total : 0;
               return (
-                <div className="chart-legend-row" key={item.key}>
+                <button
+                  type="button"
+                  className={activeVisualKey === item.key ? 'chart-legend-row active' : 'chart-legend-row'}
+                  key={item.key}
+                  aria-pressed={activeVisualKey === item.key}
+                  onClick={() => selectSlice(item.key)}
+                >
                   <span className="legend-dot" style={{ background: COLORS[index % COLORS.length] }} />
                   <strong>{item.label}</strong>
                   <small>{formatPercent(percent)}</small>
                   <b>{formatCurrency(item.totalCents)}</b>
-                </div>
+                </button>
               );
             })}
           </div>
