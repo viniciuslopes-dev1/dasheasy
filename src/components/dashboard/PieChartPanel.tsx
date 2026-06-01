@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { FinancialSummary } from '../../types/financial';
 import { formatCurrency, formatPercent } from '../../utils/formatCurrency';
@@ -8,12 +9,16 @@ interface PieChartPanelProps {
   title: string;
   items: FinancialSummary[];
   totalLabel: string;
-  selectionLabel: string;
   selectionHint?: string;
 }
 
-function toChartData(items: FinancialSummary[]) {
+function toChartData(items: FinancialSummary[], showAll: boolean) {
   const positive = items.filter((item) => item.totalCents > 0);
+
+  if (showAll) {
+    return positive;
+  }
+
   const top = positive.slice(0, 4);
   const rest = positive.slice(4);
   if (rest.length === 0) {
@@ -39,9 +44,16 @@ function formatCompactCurrency(cents: number): string {
   return formatCurrency(cents);
 }
 
-export default function PieChartPanel({ title, items, totalLabel, selectionLabel, selectionHint }: PieChartPanelProps) {
-  const data = toChartData(items);
+export default function PieChartPanel({ title, items, totalLabel, selectionHint }: PieChartPanelProps) {
+  const [showAllItems, setShowAllItems] = useState(false);
+  const positiveItemsCount = useMemo(() => items.filter((item) => item.totalCents > 0).length, [items]);
+  const canShowAll = positiveItemsCount > 5;
+  const data = useMemo(() => toChartData(items, showAllItems && canShowAll), [canShowAll, items, showAllItems]);
   const total = data.reduce((sum, item) => sum + item.totalCents, 0);
+
+  useEffect(() => {
+    setShowAllItems(false);
+  }, [items]);
 
   return (
     <section className="chart-panel" aria-label={title}>
@@ -52,14 +64,24 @@ export default function PieChartPanel({ title, items, totalLabel, selectionLabel
           <p>
             Baseado na seleção atual
             {selectionHint ? <span>{selectionHint}</span> : null}
+            {canShowAll ? (
+              <button
+                type="button"
+                className="chart-toggle-button"
+                aria-pressed={showAllItems}
+                onClick={() => setShowAllItems((current) => !current)}
+              >
+                {showAllItems ? 'Resumir' : `Ver todos (${positiveItemsCount})`}
+              </button>
+            ) : null}
           </p>
         </div>
       </div>
 
       {data.length > 0 ? (
-        <div className="chart-content">
+        <div className={showAllItems && canShowAll ? 'chart-content chart-content-expanded' : 'chart-content'}>
           <div className="donut-wrap">
-            <ResponsiveContainer width="100%" height={390}>
+            <ResponsiveContainer width="100%" height={245}>
               <PieChart>
                 <Pie
                   data={data}
@@ -93,11 +115,10 @@ export default function PieChartPanel({ title, items, totalLabel, selectionLabel
             <div className="donut-center">
               <span>Total</span>
               <strong>{formatCompactCurrency(total)}</strong>
-              <small>{selectionLabel === 'Todos' ? '100%' : selectionLabel}</small>
             </div>
           </div>
-          <div className="chart-legend-list">
-            {data.slice(0, 8).map((item, index) => {
+          <div className={showAllItems && canShowAll ? 'chart-legend-list full' : 'chart-legend-list'}>
+            {data.map((item, index) => {
               const percent = total > 0 ? item.totalCents / total : 0;
               return (
                 <div className="chart-legend-row" key={item.key}>

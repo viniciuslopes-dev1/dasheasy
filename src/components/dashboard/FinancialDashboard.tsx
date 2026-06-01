@@ -35,7 +35,6 @@ export default function FinancialDashboard({ records, analysis, onOpenSettings }
     : selectedGroup
       ? `Distribuição por departamento`
       : 'Distribuição por agrupamento';
-  const selectionLabel = selectedDepartment?.label ?? selectedGroup?.label ?? 'Todos';
   const selectionHint = selectedDepartment?.label ?? selectedGroup?.label ?? undefined;
 
   function handleSelectGroup(item: FinancialSummary) {
@@ -105,7 +104,6 @@ export default function FinancialDashboard({ records, analysis, onOpenSettings }
               title={chartTitle}
               items={chartItems}
               totalLabel={formatCurrency(totalCents)}
-              selectionLabel={selectionLabel}
               selectionHint={selectionHint}
             />
             <div className="chart-footer">
