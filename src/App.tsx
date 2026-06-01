@@ -1,29 +1,26 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
-  Bell,
-  Building2,
-  FileText,
   Home,
-  LogOut,
-  Moon,
   PieChart,
-  Settings,
-  Table2,
-  Users,
+  UploadCloud,
   X,
 } from 'lucide-react';
 import ExcelUpload from './components/ExcelUpload';
+import ComparisonDashboard from './components/comparisons/ComparisonDashboard';
 import FinancialDashboard from './components/dashboard/FinancialDashboard';
 import type { ExcelAnalysis } from './types/financial';
-import { formatCurrency } from './utils/formatCurrency';
+
+type AppView = 'overview' | 'comparisons';
 
 export default function App() {
   const [activeAnalysis, setActiveAnalysis] = useState<ExcelAnalysis | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const totalLabel = useMemo(
-    () => (activeAnalysis ? formatCurrency(activeAnalysis.totalAmountCents) : 'R$ 0,00'),
-    [activeAnalysis],
-  );
+  const [activeView, setActiveView] = useState<AppView>('overview');
+  const pageTitle = activeView === 'comparisons' ? 'Comparações' : 'Visão geral';
+  const pageDescription =
+    activeView === 'comparisons'
+      ? 'Compare departamentos, agrupamentos e responsáveis'
+      : 'Análise consolidada dos valores por categoria';
 
   function handleImported(analysis: ExcelAnalysis) {
     setActiveAnalysis(analysis);
@@ -33,68 +30,65 @@ export default function App() {
   return (
     <main className="app-frame">
       <aside className="sidebar" aria-label="Navegação principal">
-        <div className="brand-block">
-          <div className="brand-mark">
-            <span />
-            <span />
-            <span />
-          </div>
-          <strong>Finanças</strong>
-        </div>
         <nav className="side-nav">
-          <button className="side-nav-item active" type="button" aria-label="Visão geral">
+          <button
+            className={activeView === 'overview' ? 'side-nav-item active' : 'side-nav-item'}
+            type="button"
+            aria-label="Visão geral"
+            onClick={() => setActiveView('overview')}
+          >
             <Home size={22} />
           </button>
-          <button className="side-nav-item" type="button" aria-label="Gráficos">
+          <button
+            className={activeView === 'comparisons' ? 'side-nav-item active' : 'side-nav-item'}
+            type="button"
+            aria-label="Comparações"
+            onClick={() => setActiveView('comparisons')}
+          >
             <PieChart size={22} />
           </button>
-          <button className="side-nav-item" type="button" aria-label="Tabelas">
-            <Table2 size={22} />
-          </button>
-          <button className="side-nav-item" type="button" aria-label="Empresas">
-            <Building2 size={22} />
-          </button>
-          <button className="side-nav-item" type="button" aria-label="Usuários">
-            <Users size={22} />
-          </button>
-          <button className="side-nav-item" type="button" aria-label="Documentos">
-            <FileText size={22} />
-          </button>
-          <button className="side-nav-item" type="button" aria-label="Configurações" onClick={() => setIsSettingsOpen(true)}>
-            <Settings size={22} />
-          </button>
         </nav>
-        <button className="side-exit" type="button" aria-label="Sair">
-          <LogOut size={18} />
-        </button>
       </aside>
 
       <section className="app-content">
         <header className="topbar">
           <div className="topbar-title">
-            <h1>Visão geral</h1>
-            <p>Análise consolidada dos valores por categoria</p>
+            <h1>{pageTitle}</h1>
+            <p>{pageDescription}</p>
           </div>
           <div className="topbar-actions">
-            <button className="top-icon-button" type="button" aria-label="Alternar tema">
-              <Moon size={21} />
+            <button className="import-top-button" type="button" onClick={() => setIsSettingsOpen(true)}>
+              <UploadCloud size={17} />
+              Importar
             </button>
-            <button className="top-icon-button" type="button" aria-label="Notificações">
-              <Bell size={21} />
+          </div>
+          <div className="mobile-view-switcher" aria-label="Navegação de telas">
+            <button
+              type="button"
+              className={activeView === 'overview' ? 'active' : ''}
+              onClick={() => setActiveView('overview')}
+            >
+              Visão geral
             </button>
-            <div className="admin-chip">
-              <span>AD</span>
-            </div>
-            <strong className="admin-label">Admin</strong>
-            <span className="admin-chevron">⌄</span>
+            <button
+              type="button"
+              className={activeView === 'comparisons' ? 'active' : ''}
+              onClick={() => setActiveView('comparisons')}
+            >
+              Comparações
+            </button>
           </div>
         </header>
 
-        <FinancialDashboard
-          records={activeAnalysis?.records ?? []}
-          analysis={activeAnalysis}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-        />
+        {activeView === 'comparisons' ? (
+          <ComparisonDashboard records={activeAnalysis?.records ?? []} onOpenSettings={() => setIsSettingsOpen(true)} />
+        ) : (
+          <FinancialDashboard
+            records={activeAnalysis?.records ?? []}
+            analysis={activeAnalysis}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+          />
+        )}
       </section>
 
       {isSettingsOpen ? (
