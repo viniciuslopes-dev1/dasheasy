@@ -42,6 +42,13 @@ export interface CashFlowSnapshot {
   closingForecastCents: number;
 }
 
+export interface CashFlowDailyEntry {
+  date: string;
+  debitCents: number;
+  creditCents: number;
+  projectedBalanceCents?: number;
+}
+
 export interface DailyCashFlow {
   date: string;
   debitCents: number;
@@ -55,10 +62,14 @@ export interface CashFlowDataset {
   startDate: string;
   endDate: string;
   initialForecastClosingCents: number;
+  sourceFileName?: string;
+  importedAt?: string;
   bankAccounts: BankAccount[];
+  dailyEntries?: CashFlowDailyEntry[];
   movements: CashFlowMovement[];
   changes: CashFlowChange[];
   snapshots: CashFlowSnapshot[];
+  issues?: CashFlowImportIssue[];
 }
 
 export interface CashFlowMetrics {
@@ -70,4 +81,28 @@ export interface CashFlowMetrics {
   accumulatedVariationCents: number;
   minProjectedBalanceCents: number;
   minProjectedBalanceDate: string;
+}
+
+export interface CashFlowImportIssue {
+  type: string;
+  severity: 'info' | 'warning' | 'error';
+  message: string;
+  row?: number;
+  sheetName?: string;
+}
+
+export interface CashFlowImportSummary {
+  fileName: string;
+  sheetNames: string[];
+  bankAccountCount: number;
+  dailyEntryCount: number;
+  debitMovementCount: number;
+  creditMovementCount: number;
+  ignoredSheetNames: string[];
+  issues: CashFlowImportIssue[];
+}
+
+export interface CashFlowImportResult {
+  dataset: CashFlowDataset;
+  summary: CashFlowImportSummary;
 }

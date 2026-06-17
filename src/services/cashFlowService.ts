@@ -170,6 +170,31 @@ export function getIncludedBankBalanceCents(accounts: BankAccount[]): number {
 
 export function calculateDailyCashFlow(dataset: CashFlowDataset): DailyCashFlow[] {
   const initialBalanceCents = getIncludedBankBalanceCents(dataset.bankAccounts);
+  if (dataset.dailyEntries?.length) {
+    const dailyEntryByDate = dataset.dailyEntries.reduce<Record<string, { debitCents: number; creditCents: number; projectedBalanceCents?: number }>>(
+      (acc, entry) => {
+        acc[entry.date] = entry;
+        return acc;
+      },
+      {},
+    );
+
+    let projectedBalanceCents = initialBalanceCents;
+    return enumerateDates(dataset.startDate, dataset.endDate).map((date) => {
+      const entry = dailyEntryByDate[date] ?? { debitCents: 0, creditCents: 0 };
+      const netCents = entry.creditCents - entry.debitCents;
+      projectedBalanceCents = entry.projectedBalanceCents ?? projectedBalanceCents + netCents;
+
+      return {
+        date,
+        debitCents: entry.debitCents,
+        creditCents: entry.creditCents,
+        netCents,
+        projectedBalanceCents,
+      };
+    });
+  }
+
   const movementByDate = dataset.movements.reduce<Record<string, { debitCents: number; creditCents: number }>>(
     (acc, movement) => {
       if (movement.status === 'CANCELADO') {

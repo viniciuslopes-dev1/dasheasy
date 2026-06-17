@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { ChangeEvent, useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -11,14 +11,26 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { AlertTriangle, Banknote, CalendarDays, Landmark, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  Banknote,
+  CalendarDays,
+  CheckCircle2,
+  FileSpreadsheet,
+  Landmark,
+  Search,
+  TrendingDown,
+  TrendingUp,
+  UploadCloud,
+} from 'lucide-react';
+import { analyzeCashFlowExcelFile } from '../../services/cashFlowImportService';
 import {
   calculateCashFlowMetrics,
   calculateDailyCashFlow,
   formatCashFlowDate,
   sampleCashFlowDataset,
 } from '../../services/cashFlowService';
-import type { BankAccount, CashFlowMovement, CashFlowTransactionType } from '../../types/cashFlow';
+import type { BankAccount, CashFlowDataset, CashFlowImportSummary, CashFlowMovement, CashFlowTransactionType } from '../../types/cashFlow';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 type CashFlowTab = 'dashboard' | 'movements' | 'variations' | 'accounts';
@@ -56,12 +68,13 @@ function getVariationLabel(valueCents: number): string {
 
 function balanceDot(props: { cx?: number; cy?: number; payload?: { saldo: number } }) {
   if (props.cx === undefined || props.cy === undefined || !props.payload) {
-    return <g />;
+    return <g key="empty-balance-dot" />;
   }
 
   const isNegative = props.payload.saldo < 0;
   return (
     <circle
+      key={`balance-dot-${props.cx}-${props.cy}`}
       cx={props.cx}
       cy={props.cy}
       r={isNegative ? 5 : 3}
@@ -77,14 +90,19 @@ export default function CashFlowDashboard() {
   const [search, setSearch] = useState('');
   const [movementTypeFilter, setMovementTypeFilter] = useState<MovementTypeFilter>('ALL');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [baseDataset, setBaseDataset] = useState<CashFlowDataset>(sampleCashFlowDataset);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(sampleCashFlowDataset.bankAccounts);
+  const [importSummary, setImportSummary] = useState<CashFlowImportSummary | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importSuccess, setImportSuccess] = useState('');
 
   const dataset = useMemo(
     () => ({
-      ...sampleCashFlowDataset,
+      ...baseDataset,
       bankAccounts,
     }),
-    [bankAccounts],
+    [bankAccounts, baseDataset],
   );
 
   const dailyCashFlow = useMemo(() => calculateDailyCashFlow(dataset), [dataset]);
@@ -150,6 +168,34 @@ export default function CashFlowDashboard() {
     );
   }
 
+  async function handleCashFlowFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    setImportError('');
+    setImportSuccess('');
+
+    if (!file) {
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      const result = await analyzeCashFlowExcelFile(file);
+      setBaseDataset(result.dataset);
+      setBankAccounts(result.dataset.bankAccounts);
+      setImportSummary(result.summary);
+      setSelectedDay(null);
+      setSearch('');
+      setMovementTypeFilter('ALL');
+      setActiveTab('dashboard');
+      setImportSuccess('Planilha carregada localmente. Nada foi salvo no Supabase.');
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Nao foi possivel importar a planilha de fluxo de caixa.');
+    } finally {
+      setIsImporting(false);
+    }
+  }
+
   return (
     <section className="dashboard-area cash-flow-area" aria-label="Fluxo de caixa">
       <div className="cash-flow-shell">
@@ -166,7 +212,49 @@ export default function CashFlowDashboard() {
             <strong>{formatCurrency(metrics.currentForecastClosingCents)}</strong>
             <small>Fechamento atual previsto</small>
           </div>
+          <div className="cash-flow-import-box">
+            <label className="cash-flow-upload-button">
+              <UploadCloud size={17} />
+              {isImporting ? 'Analisando...' : 'Importar planilha'}
+              <input type="file" accept=".xlsx,.xls" onChange={handleCashFlowFileChange} disabled={isImporting} />
+            </label>
+            <small>{dataset.sourceFileName ? dataset.sourceFileName : 'Usando dados demonstrativos ate importar um Excel.'}</small>
+          </div>
         </section>
+
+        {importError ? (
+          <div className="status error cash-flow-import-status">
+            <AlertTriangle size={16} />
+            {importError}
+          </div>
+        ) : null}
+
+        {importSuccess && importSummary ? (
+          <div className="status success cash-flow-import-status">
+            <CheckCircle2 size={16} />
+            <span>
+              {importSuccess} {importSummary.debitMovementCount} debitos, {importSummary.creditMovementCount} creditos e{' '}
+              {importSummary.dailyEntryCount} dias de fluxo detectados.
+            </span>
+          </div>
+        ) : null}
+
+        {importSummary?.issues.length ? (
+          <section className="panel cash-flow-import-summary">
+            <div>
+              <FileSpreadsheet size={18} />
+              <strong>{importSummary.fileName}</strong>
+              <span>
+                Abas: {importSummary.sheetNames.join(', ')}. {importSummary.ignoredSheetNames.length} aba(s) ignorada(s).
+              </span>
+            </div>
+            <ul>
+              {importSummary.issues.slice(0, 3).map((issue, index) => (
+                <li key={`${issue.type}-${issue.sheetName ?? 'sheet'}-${issue.row ?? index}`}>{issue.message}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         <nav className="cash-flow-tabs" aria-label="Navegacao do fluxo de caixa">
           {CASH_FLOW_TABS.map((tab) => (
