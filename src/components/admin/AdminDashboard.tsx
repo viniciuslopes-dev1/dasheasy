@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react';
+import CashFlowDashboard from '../cash-flow/CashFlowDashboard';
 import ComparisonDashboard from '../comparisons/ComparisonDashboard';
 import FinancialDashboard from '../dashboard/FinancialDashboard';
 import type { AppView } from '../../types/navigation';
@@ -37,6 +38,8 @@ export default function AdminDashboard({
         </section>
       ) : activeView === 'comparisons' ? (
         <ComparisonDashboard records={dataset.records} onOpenSettings={onOpenSettings} canImport />
+      ) : activeView === 'cashFlow' ? (
+        <CashFlowDashboard />
       ) : (
         <FinancialDashboard
           records={dataset.records}

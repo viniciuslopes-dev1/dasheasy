@@ -1,1 +1,1 @@
-export type AppView = 'overview' | 'comparisons';
+export type AppView = 'overview' | 'comparisons' | 'cashFlow';

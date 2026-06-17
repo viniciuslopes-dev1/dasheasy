@@ -1257,6 +1257,499 @@ button {
   white-space: nowrap;
 }
 
+.cash-flow-area {
+  overflow: auto;
+}
+
+.cash-flow-area::-webkit-scrollbar,
+.cash-flow-table-wrap::-webkit-scrollbar,
+.cash-flow-change-list::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.cash-flow-area::-webkit-scrollbar-thumb,
+.cash-flow-table-wrap::-webkit-scrollbar-thumb,
+.cash-flow-change-list::-webkit-scrollbar-thumb {
+  background: rgba(112, 132, 165, 0.28);
+  border-radius: 999px;
+}
+
+.cash-flow-shell {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.cash-flow-hero {
+  min-height: 94px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+}
+
+.cash-flow-hero h2,
+.cash-flow-panel-heading h3 {
+  margin: 0;
+  color: #ffffff;
+}
+
+.cash-flow-hero h2 {
+  margin-top: 4px;
+  font-size: 1.18rem;
+}
+
+.cash-flow-hero p,
+.cash-flow-panel-heading p {
+  margin: 5px 0 0;
+  color: #a8b2c4;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.cash-flow-hero-kpi {
+  min-width: 250px;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(84, 129, 255, 0.24);
+  border-radius: 8px;
+  background: rgba(8, 14, 25, 0.42);
+  text-align: right;
+}
+
+.cash-flow-hero-kpi span,
+.cash-flow-hero-kpi small {
+  color: #a8b2c4;
+  font-size: 0.76rem;
+}
+
+.cash-flow-hero-kpi strong {
+  color: #ffffff;
+  font-size: 1.42rem;
+}
+
+.cash-flow-tabs {
+  display: flex;
+  gap: 8px;
+  overflow: auto;
+  padding-bottom: 2px;
+}
+
+.cash-flow-tabs button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid rgba(112, 132, 165, 0.22);
+  border-radius: 8px;
+  background: rgba(12, 20, 34, 0.72);
+  color: #c8d1e0;
+  font-size: 0.82rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.cash-flow-tabs button.active {
+  color: #ffffff;
+  border-color: rgba(84, 129, 255, 0.42);
+  background: linear-gradient(135deg, #1d55d8, #17377a);
+  box-shadow: inset 0 0 0 1px rgba(119, 159, 255, 0.16);
+}
+
+.cash-flow-dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(520px, 0.62fr) minmax(360px, 0.38fr);
+  gap: 10px;
+}
+
+.cash-flow-metrics {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.cash-flow-metric {
+  min-height: 82px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(112, 132, 165, 0.16);
+  border-radius: 8px;
+  background: rgba(8, 14, 25, 0.46);
+}
+
+.cash-flow-metric span {
+  display: block;
+  color: #9fb0c8;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cash-flow-metric strong {
+  display: block;
+  margin-top: 7px;
+  color: #ffffff;
+  font-size: 1.02rem;
+}
+
+.cash-flow-metric i {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  background: rgba(84, 129, 255, 0.14);
+  color: #76a0ff;
+  font-style: normal;
+}
+
+.cash-flow-metric.positive strong,
+.cash-flow-impact.positive,
+.variation-balance-row.positive strong {
+  color: #8ee5bd;
+}
+
+.cash-flow-metric.negative strong,
+.cash-flow-impact.negative,
+.variation-balance-row.negative strong,
+.negative-value {
+  color: #ff9a8d;
+}
+
+.cash-flow-chart-panel,
+.cash-flow-summary-panel,
+.cash-flow-table-panel {
+  min-height: 0;
+  padding: 16px 18px;
+}
+
+.cash-flow-balance-panel {
+  min-height: 370px;
+}
+
+.cash-flow-panel-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+
+.cash-flow-panel-heading h3 {
+  font-size: 1rem;
+}
+
+.cash-flow-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(84, 129, 255, 0.3);
+  border-radius: 999px;
+  background: rgba(12, 22, 42, 0.82);
+  color: #c9d7ff;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.variation-balance-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  border-bottom: 1px solid rgba(112, 132, 165, 0.12);
+}
+
+.variation-balance-row span {
+  overflow: hidden;
+  color: #d8e1ef;
+  font-size: 0.82rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.variation-balance-row strong {
+  color: #ffffff;
+  font-size: 0.84rem;
+  white-space: nowrap;
+}
+
+.variation-balance-row.total {
+  margin-top: 6px;
+  border-bottom: 0;
+  border-radius: 8px;
+  background: rgba(84, 129, 255, 0.1);
+  padding: 0 10px;
+}
+
+.negative-day-list {
+  display: grid;
+  gap: 7px;
+}
+
+.negative-day {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  border: 1px solid rgba(112, 132, 165, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 14, 25, 0.34);
+  color: #d8e1ef;
+  padding: 0 10px;
+}
+
+.negative-day:hover,
+.negative-day.active {
+  border-color: rgba(255, 107, 107, 0.34);
+  background: rgba(154, 52, 18, 0.18);
+}
+
+.negative-day svg {
+  color: #ff9a8d;
+}
+
+.negative-day span {
+  text-align: left;
+  font-weight: 800;
+}
+
+.negative-day strong {
+  color: #ffb299;
+  font-size: 0.8rem;
+}
+
+.cash-flow-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cash-flow-search {
+  width: 320px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  border: 1px solid rgba(112, 132, 165, 0.25);
+  border-radius: 8px;
+  background: rgba(8, 14, 25, 0.72);
+  color: #8fa0ba;
+}
+
+.cash-flow-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #eef4ff;
+}
+
+.cash-flow-filter-bar select {
+  height: 34px;
+  border: 1px solid rgba(112, 132, 165, 0.25);
+  border-radius: 8px;
+  background: rgba(8, 14, 25, 0.72);
+  color: #eef4ff;
+  padding: 0 11px;
+}
+
+.cash-flow-table-wrap {
+  max-height: calc(100dvh - 238px);
+  overflow: auto;
+  border: 1px solid rgba(112, 132, 165, 0.16);
+  border-radius: 8px;
+}
+
+.cash-flow-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.cash-flow-table th,
+.cash-flow-table td {
+  padding: 10px 11px;
+  border-bottom: 1px solid rgba(112, 132, 165, 0.12);
+  color: #d8e1ef;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.cash-flow-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #111a2b;
+  color: #ffffff;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.cash-flow-table td:nth-child(5) {
+  color: #ffffff;
+  font-weight: 800;
+  text-align: right;
+}
+
+.movement-type {
+  display: inline-flex;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.movement-type.debit {
+  background: rgba(154, 52, 18, 0.2);
+  color: #ffb299;
+}
+
+.movement-type.credit {
+  background: rgba(47, 111, 94, 0.28);
+  color: #9bf1cb;
+}
+
+.variation-overview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cash-flow-change-list {
+  display: grid;
+  gap: 8px;
+  max-height: calc(100dvh - 260px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.cash-flow-change-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px 96px 128px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(112, 132, 165, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 14, 25, 0.34);
+}
+
+.cash-flow-change-card span,
+.cash-flow-change-card small,
+.bank-account-card span,
+.bank-account-card small {
+  color: #9fb0c8;
+  font-size: 0.72rem;
+}
+
+.cash-flow-change-card strong,
+.cash-flow-change-card b,
+.bank-account-card strong {
+  color: #ffffff;
+}
+
+.cash-flow-change-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+
+.cash-flow-change-card p {
+  margin: 4px 0 0;
+  color: #a8b2c4;
+  font-size: 0.78rem;
+}
+
+.cash-flow-impact {
+  justify-self: end;
+  margin-top: 0 !important;
+  white-space: nowrap;
+}
+
+.bank-account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
+  gap: 9px;
+}
+
+.bank-account-card {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid rgba(112, 132, 165, 0.14);
+  border-radius: 8px;
+  background: rgba(8, 14, 25, 0.34);
+}
+
+.bank-account-card.included {
+  border-color: rgba(84, 129, 255, 0.28);
+  background: linear-gradient(90deg, rgba(37, 86, 217, 0.2), rgba(8, 14, 25, 0.34));
+}
+
+.bank-account-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(84, 129, 255, 0.14);
+  color: #76a0ff;
+}
+
+.bank-account-card strong {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  font-size: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bank-account-card b {
+  justify-self: end;
+  color: #ffffff;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.account-toggle {
+  grid-column: 2 / 4;
+  justify-self: end;
+  height: 30px;
+  padding: 0 11px;
+  border: 1px solid rgba(112, 132, 165, 0.24);
+  border-radius: 8px;
+  background: rgba(12, 20, 34, 0.72);
+  color: #c8d1e0;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.account-toggle[aria-pressed="true"] {
+  border-color: rgba(47, 111, 94, 0.46);
+  background: rgba(47, 111, 94, 0.24);
+  color: #9bf1cb;
+}
+
 .empty-dashboard {
   display: grid;
   place-items: center;
@@ -1521,7 +2014,8 @@ button {
   .comparison-layout,
   .comparison-bottom-grid,
   .chart-content,
-  .chart-footer {
+  .chart-footer,
+  .cash-flow-dashboard-grid {
     grid-template-columns: 1fr;
   }
 
@@ -1532,6 +2026,20 @@ button {
 
   .comparison-ranking {
     max-height: 320px;
+  }
+
+  .cash-flow-metrics {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .bank-account-grid,
+  .cash-flow-change-card {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-flow-impact,
+  .account-toggle {
+    justify-self: start;
   }
 
   .chart-period-control {
@@ -1573,7 +2081,7 @@ button {
 
   .mobile-view-switcher {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 8px;
   }
 
@@ -1626,6 +2134,44 @@ button {
   .comparison-ranking {
     max-height: none;
     overflow: visible;
+  }
+
+  .cash-flow-hero,
+  .cash-flow-panel-heading,
+  .cash-flow-filter-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cash-flow-hero-kpi,
+  .cash-flow-search {
+    width: 100%;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .cash-flow-metrics,
+  .variation-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .cash-flow-table-wrap,
+  .cash-flow-change-list {
+    max-height: none;
+  }
+
+  .bank-account-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bank-account-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+
+  .bank-account-card b,
+  .account-toggle {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .comparison-chart-header,

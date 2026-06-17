@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { History, Home, LogOut, PieChart, UploadCloud, X } from 'lucide-react';
+import { History, Home, LogOut, PieChart, UploadCloud, WalletCards, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import {
   loadAdminDashboardVersions,
@@ -18,6 +18,7 @@ const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const AdminLogin = lazy(() => import('./components/admin/AdminLogin'));
 const VersionHistory = lazy(() => import('./components/admin/VersionHistory'));
 const ExcelUpload = lazy(() => import('./components/ExcelUpload'));
+const CashFlowDashboard = lazy(() => import('./components/cash-flow/CashFlowDashboard'));
 const ComparisonDashboard = lazy(() => import('./components/comparisons/ComparisonDashboard'));
 const FinancialDashboard = lazy(() => import('./components/dashboard/FinancialDashboard'));
 
@@ -68,12 +69,20 @@ export default function App() {
   const [error, setError] = useState('');
 
   const isAdminAuthenticated = Boolean(session?.user);
-  const pageTitle = isAdminRoute ? 'Administração' : activeView === 'comparisons' ? 'Comparações' : 'Visão geral';
+  const pageTitle = isAdminRoute
+    ? 'Administração'
+    : activeView === 'comparisons'
+      ? 'Comparações'
+      : activeView === 'cashFlow'
+        ? 'Fluxo de caixa'
+        : 'Visão geral';
   const pageDescription = isAdminRoute
     ? 'Importe, publique e restaure versões do dashboard'
     : activeView === 'comparisons'
       ? 'Compare departamentos, agrupamentos e responsáveis'
-      : 'Análise consolidada dos valores publicados';
+      : activeView === 'cashFlow'
+        ? 'Acompanhe previsão inicial, saldo projetado e variações'
+        : 'Análise consolidada dos valores publicados';
 
   const currentPublicEmptyText = useMemo(
     () =>
@@ -239,6 +248,14 @@ export default function App() {
           >
             <PieChart size={22} />
           </button>
+          <button
+            className={activeView === 'cashFlow' ? 'side-nav-item active' : 'side-nav-item'}
+            type="button"
+            aria-label="Fluxo de caixa"
+            onClick={() => setActiveView('cashFlow')}
+          >
+            <WalletCards size={22} />
+          </button>
           {isAdminRoute ? (
             <button
               className="side-nav-item"
@@ -286,6 +303,13 @@ export default function App() {
             >
               Comparações
             </button>
+            <button
+              type="button"
+              className={activeView === 'cashFlow' ? 'active' : ''}
+              onClick={() => setActiveView('cashFlow')}
+            >
+              Fluxo
+            </button>
           </div>
         </header>
 
@@ -302,6 +326,10 @@ export default function App() {
         ) : activeView === 'comparisons' ? (
           <Suspense fallback={<RouteLoading />}>
             <ComparisonDashboard records={activeDataset.records} />
+          </Suspense>
+        ) : activeView === 'cashFlow' ? (
+          <Suspense fallback={<RouteLoading />}>
+            <CashFlowDashboard />
           </Suspense>
         ) : (
           <Suspense fallback={<RouteLoading />}>
