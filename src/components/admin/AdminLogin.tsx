@@ -1,13 +1,14 @@
 import { FormEvent, useState } from 'react';
 import { AlertTriangle, LockKeyhole } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { getAdminAuthDomain, resolveAdminLoginEmail } from '../../services/adminLoginService';
 
 interface AdminLoginProps {
   onSignedIn: () => void;
 }
 
 export default function AdminLogin({ onSignedIn }: AdminLoginProps) {
-  const [email, setEmail] = useState('');
+  const [loginName, setLoginName] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -23,13 +24,13 @@ export default function AdminLogin({ onSignedIn }: AdminLoginProps) {
 
     setIsSubmitting(true);
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: resolveAdminLoginEmail(loginName, getAdminAuthDomain()),
       password,
     });
     setIsSubmitting(false);
 
     if (signInError) {
-      setError('E-mail ou senha inválidos.');
+      setError('Nome ou senha inválidos.');
       return;
     }
 
@@ -47,14 +48,14 @@ export default function AdminLogin({ onSignedIn }: AdminLoginProps) {
         <p>Apenas o usuário principal pode importar, publicar e republicar versões do dashboard.</p>
 
         <label>
-          <span>E-mail</span>
+          <span>Nome</span>
           <input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            type="email"
-            autoComplete="email"
+            value={loginName}
+            onChange={(event) => setLoginName(event.target.value)}
+            type="text"
+            autoComplete="username"
             required
-            placeholder="admin@empresa.com"
+            placeholder="admin"
           />
         </label>
 

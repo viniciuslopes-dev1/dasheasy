@@ -42,7 +42,7 @@ O sistema tem duas superfícies:
 ## Próximas etapas operacionais
 
 1. Aplicar a migration `002_dashboard_versions.sql` no Supabase.
-2. Criar o usuário principal em Supabase Auth.
+2. Criar o usuário principal em Supabase Auth usando e-mail técnico derivado do nome. Exemplo: nome `vinicius` vira `vinicius@dasheasy.local`.
 3. Inserir o ID desse usuário em `public.admin_users`.
 4. Garantir que `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` estejam configuradas na Vercel.
 5. Fazer login em `/admin`, importar a planilha, revisar e publicar.
