@@ -1,41 +1,49 @@
 # Implementation Plan
 
-## Etapas
+## Estado atual
 
-1. Criar estrutura React + TypeScript sem substituir funcionalidades existentes, pois o repositório está vazio.
-2. Adicionar dependências: `@supabase/supabase-js`, `@e965/xlsx`, `recharts`, `lucide-react`, `vite`, `vitest`.
-3. Criar tipos financeiros em `src/types/financial.ts`.
-4. Criar testes unitários para normalização e parser da planilha.
-5. Implementar normalização de texto, moeda, data e deduplicação.
-6. Implementar parser de Excel por blocos repetidos.
-7. Criar cliente Supabase configurado por variáveis públicas.
-8. Criar serviço de persistência e consultas agregadas.
-9. Criar migration Supabase com tabelas, índices e RLS.
-10. Criar upload com análise, prévia e confirmação.
-11. Criar dashboard hierárquico com listas, busca, breadcrumbs e gráficos de pizza.
-12. Adicionar estados de loading, erro e vazio.
-13. Executar testes, lint/build e verificação manual local.
+O sistema tem duas superfícies:
 
-## Arquivos Planejados
+- `/`: dashboard público somente leitura.
+- `/admin`: área autenticada para o usuário principal importar planilhas, revisar versões, publicar e republicar.
 
-- `src/types/financial.ts`: contratos de dados.
-- `src/utils/normalizeExcelData.ts`: normalização e parsing.
-- `src/services/excelImportService.ts`: leitura/análise do Excel.
-- `src/services/financialDataService.ts`: agregações e importação no Supabase.
-- `src/lib/supabase.ts`: cliente Supabase.
-- `src/components/ExcelUpload.tsx`: upload, análise e confirmação.
-- `src/components/dashboard/FinancialDashboard.tsx`: estado hierárquico.
-- `src/components/dashboard/GroupingList.tsx`: lista/tabela dos itens.
-- `src/components/dashboard/PieChartPanel.tsx`: gráfico.
-- `src/components/dashboard/BreadcrumbNavigation.tsx`: navegação.
-- `src/utils/formatCurrency.ts`: moeda brasileira.
-- `src/**/*.test.ts`: testes unitários.
-- `supabase/migrations/001_financial_imports.sql`: schema.
+## Fluxo público
 
-## Plano de Teste Automatizado
+1. Usuário acessa o link principal.
+2. O app carrega a versão `published` do Supabase.
+3. O dashboard e comparações usam apenas registros ligados à versão publicada.
+4. Não há botão de importação nem configuração no público.
 
-- Normalizar espaços e acentos para chaves.
-- Converter valores monetários brasileiros e numéricos para centavos.
-- Detectar blocos com cabeçalhos internos.
-- Garantir que totais dos detalhes batem com totais do bloco.
-- Agregar por agrupamento, departamento e pessoa.
+## Fluxo admin
+
+1. Admin acessa `/admin`.
+2. Se não houver sessão, vê tela de login.
+3. Após login, o app carrega o histórico de versões.
+4. A versão mais recente aparece no dashboard admin.
+5. Ao importar uma planilha, o sistema cria uma versão `draft`.
+6. O admin revisa os dados.
+7. Ao clicar em publicar/republicar, a versão escolhida vira `published` e a anterior vira `archived`.
+
+## Arquivos principais
+
+- `src/App.tsx`: separa público/admin, sessão, carregamento e publicação.
+- `src/components/admin/AdminLogin.tsx`: login por e-mail e senha via Supabase Auth.
+- `src/components/admin/AdminDashboard.tsx`: workspace admin.
+- `src/components/admin/VersionHistory.tsx`: histórico, seleção e republicação.
+- `src/components/ExcelUpload.tsx`: cria rascunho versionado.
+- `src/services/dashboardVersionService.ts`: leitura pública, leitura admin, rascunho e publicação.
+- `supabase/migrations/002_dashboard_versions.sql`: schema de versões, RLS e RPC de publicação.
+
+## Testes
+
+- `src/services/dashboardVersionService.test.ts`: mapeamento de versões/registros, leitura publicada e chamada de publicação via RPC.
+- Testes existentes continuam cobrindo parser, normalização, agregações e cascata.
+
+## Próximas etapas operacionais
+
+1. Aplicar a migration `002_dashboard_versions.sql` no Supabase.
+2. Criar o usuário principal em Supabase Auth.
+3. Inserir o ID desse usuário em `public.admin_users`.
+4. Garantir que `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` estejam configuradas na Vercel.
+5. Fazer login em `/admin`, importar a planilha, revisar e publicar.
+6. Validar o link público `/`.

@@ -1,16 +1,17 @@
 import { ChangeEvent, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, UploadCloud } from 'lucide-react';
+import { saveDashboardDraft } from '../services/dashboardVersionService';
 import { analyzeExcelFile } from '../services/excelImportService';
-import { saveFinancialAnalysis } from '../services/financialDataService';
 import { supabase } from '../lib/supabase';
-import type { ExcelAnalysis } from '../types/financial';
+import type { DashboardVersion, ExcelAnalysis } from '../types/financial';
 import { formatCurrency } from '../utils/formatCurrency';
 
 interface ExcelUploadProps {
-  onImported: (analysis: ExcelAnalysis) => void;
+  onImported: (analysis: ExcelAnalysis, version?: DashboardVersion | null) => void;
+  userId?: string;
 }
 
-export default function ExcelUpload({ onImported }: ExcelUploadProps) {
+export default function ExcelUpload({ onImported, userId }: ExcelUploadProps) {
   const [fileName, setFileName] = useState<string>('');
   const [analyses, setAnalyses] = useState<ExcelAnalysis[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string>('');
@@ -57,11 +58,15 @@ export default function ExcelUpload({ onImported }: ExcelUploadProps) {
     setError('');
     setSuccess('');
     try {
-      await saveFinancialAnalysis(selectedAnalysis, fileName);
-      onImported(selectedAnalysis);
+      if (supabase && !userId) {
+        throw new Error('Faça login como administrador para salvar a versão no Supabase.');
+      }
+
+      const version = await saveDashboardDraft(selectedAnalysis, fileName, userId);
+      onImported(selectedAnalysis, version);
       setSuccess(
         supabase
-          ? 'Importação salva no Supabase e carregada no dashboard.'
+          ? 'Rascunho salvo. Revise os dados e clique em Publicar dashboard para atualizar o link principal.'
           : 'Supabase não configurado: dados carregados localmente para análise.',
       );
     } catch (err) {
@@ -76,7 +81,7 @@ export default function ExcelUpload({ onImported }: ExcelUploadProps) {
       <div className="panel-heading">
         <div>
           <h2>Importar Excel</h2>
-          <p>A análise acontece antes de qualquer gravação no banco.</p>
+          <p>A análise cria uma nova versão em rascunho antes de publicar no link principal.</p>
         </div>
         <FileSpreadsheet size={22} />
       </div>
@@ -161,7 +166,7 @@ export default function ExcelUpload({ onImported }: ExcelUploadProps) {
               </div>
 
               <button className="primary-action" type="button" onClick={handleConfirmImport} disabled={isSaving}>
-                {isSaving ? 'Salvando...' : 'Confirmar importação'}
+                {isSaving ? 'Salvando rascunho...' : 'Salvar rascunho'}
               </button>
             </>
           ) : null}
@@ -170,4 +175,3 @@ export default function ExcelUpload({ onImported }: ExcelUploadProps) {
     </section>
   );
 }
-

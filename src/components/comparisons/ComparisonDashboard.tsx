@@ -9,7 +9,8 @@ type ComparisonMode = Extract<DashboardLevel, 'group' | 'department' | 'person'>
 
 interface ComparisonDashboardProps {
   records: ExcelAnalysis['records'];
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
+  canImport?: boolean;
 }
 
 const MODE_OPTIONS: Array<{ value: ComparisonMode; label: string; description: string }> = [
@@ -28,7 +29,7 @@ function getShortLabel(label: string): string {
   return label.length > 24 ? `${label.slice(0, 22)}...` : label;
 }
 
-export default function ComparisonDashboard({ records, onOpenSettings }: ComparisonDashboardProps) {
+export default function ComparisonDashboard({ records, onOpenSettings, canImport = false }: ComparisonDashboardProps) {
   const [mode, setMode] = useState<ComparisonMode>('department');
   const [selectedGroupKey, setSelectedGroupKey] = useState('');
   const [search, setSearch] = useState('');
@@ -70,12 +71,18 @@ export default function ComparisonDashboard({ records, onOpenSettings }: Compari
         <section className="empty-dashboard">
           <div>
             <span className="section-label">Comparações</span>
-            <h3>Importe uma planilha para comparar departamentos e valores.</h3>
-            <p>Depois da importação, esta área mostra rankings e gráficos comparativos por agrupamento.</p>
+            <h3>{canImport ? 'Importe uma planilha para comparar departamentos e valores.' : 'Nenhum dashboard publicado para comparar.'}</h3>
+            <p>
+              {canImport
+                ? 'Depois da importação, esta área mostra rankings e gráficos comparativos por agrupamento.'
+                : 'Quando o administrador publicar uma versão, as comparações aparecerão aqui.'}
+            </p>
           </div>
-          <button type="button" className="primary-action compact" onClick={onOpenSettings}>
-            Importar planilha
-          </button>
+          {canImport && onOpenSettings ? (
+            <button type="button" className="primary-action compact" onClick={onOpenSettings}>
+              Importar planilha
+            </button>
+          ) : null}
         </section>
       </section>
     );

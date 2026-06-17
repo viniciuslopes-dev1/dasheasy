@@ -3,6 +3,7 @@ export type DashboardLevel = 'group' | 'department' | 'person';
 export interface FinancialRecord {
   id?: string;
   importId?: string;
+  versionId?: string;
   sourceRow: number;
   groupName: string;
   groupKey: string;
@@ -91,3 +92,25 @@ export interface SavedFinancialImport {
   created_at: string;
 }
 
+export type DashboardVersionStatus = 'draft' | 'published' | 'archived';
+
+export interface DashboardVersion {
+  id: string;
+  versionNumber: number;
+  status: DashboardVersionStatus;
+  sourceFileName: string;
+  sheetName: string;
+  recordCount: number;
+  blockCount: number;
+  totalAmountCents: number;
+  metadata: Record<string, unknown>;
+  createdBy: string | null;
+  publishedBy: string | null;
+  createdAt: string;
+  publishedAt: string | null;
+}
+
+export interface DashboardDataset {
+  version: DashboardVersion | null;
+  records: FinancialRecord[];
+}

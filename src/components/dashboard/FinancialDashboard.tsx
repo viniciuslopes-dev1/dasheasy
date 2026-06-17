@@ -9,10 +9,19 @@ import { formatCurrency } from '../../utils/formatCurrency';
 interface FinancialDashboardProps {
   records: ExcelAnalysis['records'];
   analysis: ExcelAnalysis | null;
-  onOpenSettings: () => void;
+  onOpenSettings?: () => void;
+  canImport?: boolean;
+  emptyTitle?: string;
+  emptyDescription?: string;
 }
 
-export default function FinancialDashboard({ records, analysis, onOpenSettings }: FinancialDashboardProps) {
+export default function FinancialDashboard({
+  records,
+  onOpenSettings,
+  canImport = false,
+  emptyTitle = 'Nenhum dashboard publicado ainda.',
+  emptyDescription = 'Quando o administrador publicar uma versão, os dados aparecerão aqui automaticamente.',
+}: FinancialDashboardProps) {
   const [selectedGroup, setSelectedGroup] = useState<FinancialSummary | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<FinancialSummary | null>(null);
   const [search, setSearch] = useState('');
@@ -31,9 +40,9 @@ export default function FinancialDashboard({ records, analysis, onOpenSettings }
 
   const totalCents = chartItems.reduce((sum, item) => sum + item.totalCents, 0);
   const chartTitle = selectedDepartment
-    ? `Distribuição por pessoa`
+    ? 'Distribuição por pessoa'
     : selectedGroup
-      ? `Distribuição por departamento`
+      ? 'Distribuição por departamento'
       : 'Distribuição por agrupamento';
   const selectionHint = selectedDepartment?.label ?? selectedGroup?.label ?? undefined;
 
@@ -51,13 +60,15 @@ export default function FinancialDashboard({ records, analysis, onOpenSettings }
       {records.length === 0 ? (
         <section className="empty-dashboard">
           <div>
-            <span className="section-label">Comece por aqui</span>
-            <h3>Importe uma planilha para montar o dashboard.</h3>
-            <p>A importação fica em Configurações. Depois de confirmar, esta área mostra os agrupamentos em cascata.</p>
+            <span className="section-label">{canImport ? 'Comece por aqui' : 'Visualização'}</span>
+            <h3>{emptyTitle}</h3>
+            <p>{emptyDescription}</p>
           </div>
-          <button type="button" className="primary-action compact" onClick={onOpenSettings}>
-            Importar planilha
-          </button>
+          {canImport && onOpenSettings ? (
+            <button type="button" className="primary-action compact" onClick={onOpenSettings}>
+              Importar planilha
+            </button>
+          ) : null}
         </section>
       ) : (
         <div className="dashboard-grid reference-grid">
