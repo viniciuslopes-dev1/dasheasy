@@ -1,12 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { History, Home, LogOut, PieChart, UploadCloud, X } from 'lucide-react';
-import AdminDashboard from './components/admin/AdminDashboard';
-import AdminLogin from './components/admin/AdminLogin';
-import VersionHistory from './components/admin/VersionHistory';
-import ExcelUpload from './components/ExcelUpload';
-import ComparisonDashboard from './components/comparisons/ComparisonDashboard';
-import FinancialDashboard from './components/dashboard/FinancialDashboard';
 import { supabase } from './lib/supabase';
 import {
   loadAdminDashboardVersions,
@@ -18,12 +12,51 @@ import type { DashboardDataset, DashboardVersion, ExcelAnalysis } from './types/
 import type { AppView } from './types/navigation';
 
 const EMPTY_DATASET: DashboardDataset = { version: null, records: [] };
+const PUBLIC_DASHBOARD_CACHE_KEY = 'dasheasy:published-dashboard';
+
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const AdminLogin = lazy(() => import('./components/admin/AdminLogin'));
+const VersionHistory = lazy(() => import('./components/admin/VersionHistory'));
+const ExcelUpload = lazy(() => import('./components/ExcelUpload'));
+const ComparisonDashboard = lazy(() => import('./components/comparisons/ComparisonDashboard'));
+const FinancialDashboard = lazy(() => import('./components/dashboard/FinancialDashboard'));
+
+function RouteLoading() {
+  return (
+    <section className="route-loading" aria-label="Carregando módulo">
+      <span>Carregando...</span>
+    </section>
+  );
+}
+
+function readCachedPublishedDashboard(): DashboardDataset {
+  try {
+    const cached = window.localStorage.getItem(PUBLIC_DASHBOARD_CACHE_KEY);
+    return cached ? JSON.parse(cached) : EMPTY_DATASET;
+  } catch {
+    return EMPTY_DATASET;
+  }
+}
+
+function writeCachedPublishedDashboard(dataset: DashboardDataset) {
+  try {
+    if (dataset.version) {
+      window.localStorage.setItem(PUBLIC_DASHBOARD_CACHE_KEY, JSON.stringify(dataset));
+    } else {
+      window.localStorage.removeItem(PUBLIC_DASHBOARD_CACHE_KEY);
+    }
+  } catch {
+    // localStorage can be unavailable in private contexts; the app still works without cache.
+  }
+}
 
 export default function App() {
   const isAdminRoute = window.location.pathname.startsWith('/admin');
   const [session, setSession] = useState<Session | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(!supabase);
-  const [publishedDataset, setPublishedDataset] = useState<DashboardDataset>(EMPTY_DATASET);
+  const [publishedDataset, setPublishedDataset] = useState<DashboardDataset>(() =>
+    isAdminRoute ? EMPTY_DATASET : readCachedPublishedDashboard(),
+  );
   const [adminDataset, setAdminDataset] = useState<DashboardDataset>(EMPTY_DATASET);
   const [versions, setVersions] = useState<DashboardVersion[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -60,7 +93,9 @@ export default function App() {
     setIsDashboardLoading(true);
     setError('');
     try {
-      setPublishedDataset(await loadPublishedDashboard());
+      const dataset = await loadPublishedDashboard();
+      setPublishedDataset(dataset);
+      writeCachedPublishedDashboard(dataset);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar o dashboard publicado.');
     } finally {
@@ -91,8 +126,10 @@ export default function App() {
   }, [isAdminRoute, session?.user]);
 
   useEffect(() => {
-    refreshPublishedDashboard();
-  }, [refreshPublishedDashboard]);
+    if (!isAdminRoute) {
+      refreshPublishedDashboard();
+    }
+  }, [isAdminRoute, refreshPublishedDashboard]);
 
   useEffect(() => {
     if (!supabase) {
@@ -143,7 +180,9 @@ export default function App() {
     try {
       await publishDashboardVersion(versionId);
       setAdminDataset(await loadDashboardVersion(versionId));
-      setPublishedDataset(await loadPublishedDashboard());
+      const dataset = await loadPublishedDashboard();
+      setPublishedDataset(dataset);
+      writeCachedPublishedDashboard(dataset);
       setVersions(await loadAdminDashboardVersions());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível publicar a versão selecionada.');
@@ -171,7 +210,11 @@ export default function App() {
   }
 
   if (isAdminRoute && !isAdminAuthenticated) {
-    return <AdminLogin onSignedIn={refreshAdminWorkspace} />;
+    return (
+      <Suspense fallback={<RouteLoading />}>
+        <AdminLogin onSignedIn={refreshAdminWorkspace} />
+      </Suspense>
+    );
   }
 
   const activeDataset = isAdminRoute ? adminDataset : publishedDataset;
@@ -247,22 +290,28 @@ export default function App() {
         </header>
 
         {isAdminRoute ? (
-          <AdminDashboard
-            activeView={activeView}
-            dataset={activeDataset}
-            isLoading={isAdminLoading}
-            error={error}
-            onOpenSettings={() => setIsSettingsOpen(true)}
-          />
+          <Suspense fallback={<RouteLoading />}>
+            <AdminDashboard
+              activeView={activeView}
+              dataset={activeDataset}
+              isLoading={isAdminLoading}
+              error={error}
+              onOpenSettings={() => setIsSettingsOpen(true)}
+            />
+          </Suspense>
         ) : activeView === 'comparisons' ? (
-          <ComparisonDashboard records={activeDataset.records} />
+          <Suspense fallback={<RouteLoading />}>
+            <ComparisonDashboard records={activeDataset.records} />
+          </Suspense>
         ) : (
-          <FinancialDashboard
-            records={activeDataset.records}
-            analysis={null}
-            emptyTitle={currentPublicEmptyText.title}
-            emptyDescription={currentPublicEmptyText.description}
-          />
+          <Suspense fallback={<RouteLoading />}>
+            <FinancialDashboard
+              records={activeDataset.records}
+              analysis={null}
+              emptyTitle={currentPublicEmptyText.title}
+              emptyDescription={currentPublicEmptyText.description}
+            />
+          </Suspense>
         )}
       </section>
 
@@ -279,7 +328,9 @@ export default function App() {
                 <X size={18} />
               </button>
             </div>
-            <ExcelUpload onImported={handleImported} userId={session?.user.id} />
+            <Suspense fallback={<RouteLoading />}>
+              <ExcelUpload onImported={handleImported} userId={session?.user.id} />
+            </Suspense>
           </aside>
         </div>
       ) : null}
@@ -292,14 +343,16 @@ export default function App() {
             aria-label="Fechar histórico"
             onClick={() => setIsHistoryOpen(false)}
           />
-          <VersionHistory
-            versions={versions}
-            activeVersionId={adminDataset.version?.id}
-            isPublishing={isPublishing}
-            onClose={() => setIsHistoryOpen(false)}
-            onSelectVersion={handleSelectVersion}
-            onPublishVersion={handlePublishVersion}
-          />
+          <Suspense fallback={<RouteLoading />}>
+            <VersionHistory
+              versions={versions}
+              activeVersionId={adminDataset.version?.id}
+              isPublishing={isPublishing}
+              onClose={() => setIsHistoryOpen(false)}
+              onSelectVersion={handleSelectVersion}
+              onPublishVersion={handlePublishVersion}
+            />
+          </Suspense>
         </div>
       ) : null}
     </main>
