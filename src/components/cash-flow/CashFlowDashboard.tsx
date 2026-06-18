@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Area,
   AreaChart,
@@ -15,22 +15,18 @@ import {
   AlertTriangle,
   Banknote,
   CalendarDays,
-  CheckCircle2,
   FileSpreadsheet,
   Landmark,
   Search,
   TrendingDown,
   TrendingUp,
-  UploadCloud,
 } from 'lucide-react';
-import { analyzeCashFlowExcelFile } from '../../services/cashFlowImportService';
 import {
   calculateCashFlowMetrics,
   calculateDailyCashFlow,
   formatCashFlowDate,
-  sampleCashFlowDataset,
 } from '../../services/cashFlowService';
-import type { BankAccount, CashFlowDataset, CashFlowImportSummary, CashFlowMovement, CashFlowTransactionType } from '../../types/cashFlow';
+import type { BankAccount, CashFlowDataset, CashFlowMovement, CashFlowTransactionType } from '../../types/cashFlow';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 type CashFlowTab = 'dashboard' | 'movements' | 'variations' | 'accounts';
@@ -85,36 +81,47 @@ function balanceDot(props: { cx?: number; cy?: number; payload?: { saldo: number
   );
 }
 
-export default function CashFlowDashboard() {
+interface CashFlowDashboardProps {
+  dataset: CashFlowDataset | null;
+}
+
+export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDashboardProps) {
   const [activeTab, setActiveTab] = useState<CashFlowTab>('dashboard');
   const [search, setSearch] = useState('');
   const [movementTypeFilter, setMovementTypeFilter] = useState<MovementTypeFilter>('ALL');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [baseDataset, setBaseDataset] = useState<CashFlowDataset>(sampleCashFlowDataset);
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(sampleCashFlowDataset.bankAccounts);
-  const [importSummary, setImportSummary] = useState<CashFlowImportSummary | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [importError, setImportError] = useState('');
-  const [importSuccess, setImportSuccess] = useState('');
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => sourceDataset?.bankAccounts ?? []);
+
+  useEffect(() => {
+    setBankAccounts(sourceDataset?.bankAccounts ?? []);
+    setSelectedDay(null);
+    setSearch('');
+    setMovementTypeFilter('ALL');
+    setActiveTab('dashboard');
+  }, [sourceDataset]);
 
   const dataset = useMemo(
-    () => ({
-      ...baseDataset,
-      bankAccounts,
-    }),
-    [bankAccounts, baseDataset],
+    () =>
+      sourceDataset
+        ? {
+            ...sourceDataset,
+            bankAccounts,
+          }
+        : null,
+    [bankAccounts, sourceDataset],
   );
 
-  const dailyCashFlow = useMemo(() => calculateDailyCashFlow(dataset), [dataset]);
-  const metrics = useMemo(() => calculateCashFlowMetrics(dataset), [dataset]);
+  const dailyCashFlow = useMemo(() => (dataset ? calculateDailyCashFlow(dataset) : []), [dataset]);
+  const metrics = useMemo(() => (dataset ? calculateCashFlowMetrics(dataset) : null), [dataset]);
   const negativeDays = dailyCashFlow.filter((day) => day.projectedBalanceCents < 0);
   const selectedDayDetails = selectedDay ? dailyCashFlow.find((day) => day.date === selectedDay) ?? null : null;
 
   const variationTotals = useMemo(() => {
-    const positiveCents = dataset.changes
+    const changes = dataset?.changes ?? [];
+    const positiveCents = changes
       .filter((change) => change.impactCents > 0)
       .reduce((sum, change) => sum + change.impactCents, 0);
-    const negativeCents = dataset.changes
+    const negativeCents = changes
       .filter((change) => change.impactCents < 0)
       .reduce((sum, change) => sum + change.impactCents, 0);
 
@@ -123,11 +130,11 @@ export default function CashFlowDashboard() {
       negativeCents,
       netCents: positiveCents + negativeCents,
     };
-  }, [dataset.changes]);
+  }, [dataset]);
 
   const filteredMovements = useMemo(
     () =>
-      dataset.movements.filter((movement) => {
+      (dataset?.movements ?? []).filter((movement) => {
         const matchesType = movementTypeFilter === 'ALL' || movement.type === movementTypeFilter;
         const normalizedSearch = search.trim().toLowerCase();
         const matchesSearch =
@@ -139,7 +146,7 @@ export default function CashFlowDashboard() {
 
         return matchesType && matchesSearch;
       }),
-    [dataset.movements, movementTypeFilter, search],
+    [dataset, movementTypeFilter, search],
   );
 
   const dailyChartData = dailyCashFlow.map((day) => ({
@@ -150,7 +157,7 @@ export default function CashFlowDashboard() {
     creditos: day.creditCents,
   }));
 
-  const snapshotChartData = dataset.snapshots.map((snapshot) => ({
+  const snapshotChartData = (dataset?.snapshots ?? []).map((snapshot) => ({
     label: formatCashFlowDate(snapshot.snapshotDate),
     previsao: snapshot.closingForecastCents,
   }));
@@ -168,34 +175,6 @@ export default function CashFlowDashboard() {
     );
   }
 
-  async function handleCashFlowFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    setImportError('');
-    setImportSuccess('');
-
-    if (!file) {
-      return;
-    }
-
-    setIsImporting(true);
-    try {
-      const result = await analyzeCashFlowExcelFile(file);
-      setBaseDataset(result.dataset);
-      setBankAccounts(result.dataset.bankAccounts);
-      setImportSummary(result.summary);
-      setSelectedDay(null);
-      setSearch('');
-      setMovementTypeFilter('ALL');
-      setActiveTab('dashboard');
-      setImportSuccess('Planilha carregada localmente. Nada foi salvo no Supabase.');
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Nao foi possivel importar a planilha de fluxo de caixa.');
-    } finally {
-      setIsImporting(false);
-    }
-  }
-
   return (
     <section className="dashboard-area cash-flow-area" aria-label="Fluxo de caixa">
       <div className="cash-flow-shell">
@@ -207,55 +186,25 @@ export default function CashFlowDashboard() {
               Controle debitos, creditos e variacoes para entender quais lancamentos mudaram o saldo previsto do mes.
             </p>
           </div>
-          <div className="cash-flow-hero-kpi">
-            <span>{dataset.monthLabel}</span>
-            <strong>{formatCurrency(metrics.currentForecastClosingCents)}</strong>
-            <small>Fechamento atual previsto</small>
-          </div>
-          <div className="cash-flow-import-box">
-            <label className="cash-flow-upload-button">
-              <UploadCloud size={17} />
-              {isImporting ? 'Analisando...' : 'Importar planilha'}
-              <input type="file" accept=".xlsx,.xls" onChange={handleCashFlowFileChange} disabled={isImporting} />
-            </label>
-            <small>{dataset.sourceFileName ? dataset.sourceFileName : 'Usando dados demonstrativos ate importar um Excel.'}</small>
-          </div>
+          {dataset && metrics ? (
+            <div className="cash-flow-hero-kpi">
+              <span>{dataset.monthLabel}</span>
+              <strong>{formatCurrency(metrics.currentForecastClosingCents)}</strong>
+              <small>Fechamento atual previsto</small>
+            </div>
+          ) : null}
         </section>
 
-        {importError ? (
-          <div className="status error cash-flow-import-status">
-            <AlertTriangle size={16} />
-            {importError}
-          </div>
-        ) : null}
-
-        {importSuccess && importSummary ? (
-          <div className="status success cash-flow-import-status">
-            <CheckCircle2 size={16} />
-            <span>
-              {importSuccess} {importSummary.debitMovementCount} debitos, {importSummary.creditMovementCount} creditos e{' '}
-              {importSummary.dailyEntryCount} dias de fluxo detectados.
-            </span>
-          </div>
-        ) : null}
-
-        {importSummary?.issues.length ? (
-          <section className="panel cash-flow-import-summary">
+        {!dataset || !metrics ? (
+          <section className="panel cash-flow-empty-state">
+            <FileSpreadsheet size={28} />
             <div>
-              <FileSpreadsheet size={18} />
-              <strong>{importSummary.fileName}</strong>
-              <span>
-                Abas: {importSummary.sheetNames.join(', ')}. {importSummary.ignoredSheetNames.length} aba(s) ignorada(s).
-              </span>
+              <h3>Nenhum fluxo de caixa publicado ainda.</h3>
+              <p>Quando o administrador publicar uma versao, os indicadores aparecerao aqui automaticamente.</p>
             </div>
-            <ul>
-              {importSummary.issues.slice(0, 3).map((issue, index) => (
-                <li key={`${issue.type}-${issue.sheetName ?? 'sheet'}-${issue.row ?? index}`}>{issue.message}</li>
-              ))}
-            </ul>
           </section>
-        ) : null}
-
+        ) : (
+          <>
         <nav className="cash-flow-tabs" aria-label="Navegacao do fluxo de caixa">
           {CASH_FLOW_TABS.map((tab) => (
             <button
@@ -495,6 +444,8 @@ export default function CashFlowDashboard() {
             </div>
           </section>
         ) : null}
+          </>
+        )}
       </div>
     </section>
   );

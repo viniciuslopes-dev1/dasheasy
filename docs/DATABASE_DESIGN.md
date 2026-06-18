@@ -91,3 +91,15 @@ Versões antigas ficam como `archived` e podem ser republicadas.
 - `financial_records(version_id, group_key)`
 - `financial_records(version_id, group_key, department_key)`
 - índices antigos por `import_id`, `group_key`, `department_key`, `person_key` continuam úteis para filtros.
+# Fluxo de caixa versionado
+
+`cash_flow_versions` armazena cada importacao de fluxo de caixa como uma versao
+independente do dashboard financeiro. O dataset analisado fica preservado em
+`jsonb`, junto com campos agregados usados no historico administrativo.
+
+- `draft`: versao criada pelo administrador e ainda invisivel no link publico.
+- `published`: unica versao visivel no link publico.
+- `archived`: versao anteriormente publicada e disponivel para republicacao.
+
+A funcao `publish_cash_flow_version(uuid)` arquiva a versao publicada atual e
+publica a escolhida na mesma transacao.

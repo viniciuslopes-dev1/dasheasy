@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { AlertTriangle, LockKeyhole } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { isDashboardAdmin } from '../../services/adminAuthorizationService';
 import { getAdminAuthDomain, resolveAdminLoginEmail } from '../../services/adminLoginService';
 
 interface AdminLoginProps {
@@ -23,18 +24,34 @@ export default function AdminLogin({ onSignedIn }: AdminLoginProps) {
     }
 
     setIsSubmitting(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: resolveAdminLoginEmail(loginName, getAdminAuthDomain()),
-      password,
-    });
-    setIsSubmitting(false);
 
-    if (signInError) {
-      setError('Nome ou senha inválidos.');
-      return;
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: resolveAdminLoginEmail(loginName, getAdminAuthDomain()),
+        password,
+      });
+
+      if (signInError) {
+        setError('Nome ou senha inválidos.');
+        return;
+      }
+
+      if (!(await isDashboardAdmin())) {
+        await supabase.auth.signOut();
+        setError('Esta conta nao possui acesso administrativo.');
+        return;
+      }
+
+      onSignedIn();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Nao foi possivel verificar o acesso administrativo.',
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    onSignedIn();
   }
 
   return (

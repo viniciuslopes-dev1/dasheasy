@@ -21,3 +21,12 @@
 - [ ] Inserir o `auth.users.id` dessa conta em `public.admin_users`.
 - [ ] Revisar no painel Supabase se as tabelas novas estão expostas à Data API com RLS ativo.
 - [ ] Definir `company_id` real quando houver multiempresa.
+# Fluxo de caixa
+
+- [x] `cash_flow_versions` possui RLS habilitado.
+- [x] Visitantes anonimos leem somente a versao publicada.
+- [x] Rascunhos e historico exigem usuario autenticado em `admin_users`.
+- [x] Novas versoes exigem `created_by = auth.uid()`.
+- [x] Publicacao exige `is_dashboard_admin()`.
+- [x] O frontend usa somente a chave publica do Supabase.
+- [x] Grants da Data API foram declarados explicitamente.

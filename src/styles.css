@@ -1373,6 +1373,50 @@ button {
   margin: 0;
 }
 
+.cash-flow-upload-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cash-flow-upload-summary span {
+  padding: 6px 9px;
+  border: 1px solid rgba(84, 129, 255, 0.22);
+  border-radius: 7px;
+  background: rgba(24, 49, 91, 0.42);
+  color: #b9c9e7;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.cash-flow-empty-state {
+  min-height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px;
+  color: #76a0ff;
+  text-align: left;
+}
+
+.cash-flow-empty-state div {
+  max-width: 520px;
+}
+
+.cash-flow-empty-state h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 1rem;
+}
+
+.cash-flow-empty-state p {
+  margin: 6px 0 0;
+  color: #a8b2c4;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .cash-flow-import-summary {
   display: grid;
   grid-template-columns: minmax(260px, 0.46fr) minmax(300px, 0.54fr);

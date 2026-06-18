@@ -2,12 +2,14 @@ import { AlertTriangle } from 'lucide-react';
 import CashFlowDashboard from '../cash-flow/CashFlowDashboard';
 import ComparisonDashboard from '../comparisons/ComparisonDashboard';
 import FinancialDashboard from '../dashboard/FinancialDashboard';
+import type { CashFlowDataset } from '../../types/cashFlow';
 import type { AppView } from '../../types/navigation';
 import type { DashboardDataset } from '../../types/financial';
 
 interface AdminDashboardProps {
   activeView: AppView;
   dataset: DashboardDataset;
+  cashFlowDataset: CashFlowDataset | null;
   isLoading: boolean;
   error: string;
   onOpenSettings: () => void;
@@ -16,6 +18,7 @@ interface AdminDashboardProps {
 export default function AdminDashboard({
   activeView,
   dataset,
+  cashFlowDataset,
   isLoading,
   error,
   onOpenSettings,
@@ -39,7 +42,7 @@ export default function AdminDashboard({
       ) : activeView === 'comparisons' ? (
         <ComparisonDashboard records={dataset.records} onOpenSettings={onOpenSettings} canImport />
       ) : activeView === 'cashFlow' ? (
-        <CashFlowDashboard />
+        <CashFlowDashboard dataset={cashFlowDataset} />
       ) : (
         <FinancialDashboard
           records={dataset.records}

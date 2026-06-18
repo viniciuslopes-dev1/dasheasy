@@ -106,3 +106,30 @@ export interface CashFlowImportResult {
   dataset: CashFlowDataset;
   summary: CashFlowImportSummary;
 }
+
+export type CashFlowVersionStatus = 'draft' | 'published' | 'archived';
+
+export interface CashFlowVersion {
+  id: string;
+  versionNumber: number;
+  status: CashFlowVersionStatus;
+  sourceFileName: string;
+  monthLabel: string;
+  startDate: string;
+  endDate: string;
+  movementCount: number;
+  accountCount: number;
+  initialBalanceCents: number;
+  currentForecastCents: number;
+  dataset: CashFlowDataset | null;
+  metadata: Record<string, unknown>;
+  createdBy: string | null;
+  publishedBy: string | null;
+  createdAt: string;
+  publishedAt: string | null;
+}
+
+export interface CashFlowVersionDataset {
+  version: CashFlowVersion | null;
+  dataset: CashFlowDataset | null;
+}
