@@ -47,3 +47,20 @@ O sistema tem duas superfícies:
 4. Garantir que `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` estejam configuradas na Vercel.
 5. Fazer login em `/admin`, importar a planilha, revisar e publicar.
 6. Validar o link público `/`.
+
+## Fluxo de caixa operacional
+
+- A antiga tela de fluxo foi renomeada para Previsao Financeira.
+- O novo Fluxo de Caixa usa `cash_flow_reports`, com versoes independentes.
+- O admin importa a planilha do cliente em `/admin` na aba Fluxo de caixa.
+- A importacao le a planilha real, separa antecipados, calcula o saldo dia a
+  dia e salva como rascunho.
+- Ao publicar, o link principal mostra uma tabela com dias, saldo inicial,
+  debito, credito, liquido, antecipados e saldo final.
+- Movimentacoes e Contas saem da Previsao Financeira e ficam no novo fluxo.
+- Variacoes sao calculadas comparando a nova importacao com a versao de fluxo
+  carregada anteriormente: novos titulos, valor alterado, data alterada, tipo
+  alterado ou removidos.
+- Aplicar `supabase/migrations/20260624004145_cash_flow_reports.sql` antes de
+  usar o novo Fluxo de Caixa com Supabase.
+ 

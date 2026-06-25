@@ -1,18 +1,18 @@
 import { supabase } from '../lib/supabase';
 import type {
-  CashFlowDataset,
-  CashFlowVersion,
-  CashFlowVersionDataset,
-  CashFlowVersionStatus,
-} from '../types/cashFlow';
-import { calculateCashFlowMetrics } from './cashFlowService';
+  CashFlowReportDataset,
+  CashFlowReportVersion,
+  CashFlowReportVersionDataset,
+  CashFlowReportVersionStatus,
+} from '../types/cashFlowReport';
+import { calculateCashFlowReportMetrics } from './cashFlowReportService';
 import { isLocalTestMode } from './localTestMode';
 import {
-  loadLocalAdminCashFlowVersions,
-  loadLocalCashFlowVersion,
-  loadLocalPublishedCashFlow,
-  publishLocalCashFlowVersion,
-  saveLocalCashFlowDraft,
+  loadLocalAdminCashFlowReportVersions,
+  loadLocalCashFlowReportVersion,
+  loadLocalPublishedCashFlowReport,
+  publishLocalCashFlowReportVersion,
+  saveLocalCashFlowReportDraft,
 } from './localVersionStore';
 
 type SupabaseQueryClient = {
@@ -29,9 +29,11 @@ const VERSION_LIST_COLUMNS = [
   'start_date',
   'end_date',
   'movement_count',
-  'account_count',
+  'daily_row_count',
+  'anticipated_count',
+  'variation_count',
   'initial_balance_cents',
-  'current_forecast_cents',
+  'closing_balance_cents',
   'metadata',
   'created_by',
   'published_by',
@@ -43,19 +45,21 @@ function getClient(client?: SupabaseQueryClient | null): SupabaseQueryClient | n
   return client ?? supabase;
 }
 
-export function mapCashFlowVersionRow(row: any): CashFlowVersion {
+export function mapCashFlowReportVersionRow(row: any): CashFlowReportVersion {
   return {
     id: row.id,
     versionNumber: row.version_number,
-    status: row.status as CashFlowVersionStatus,
+    status: row.status as CashFlowReportVersionStatus,
     sourceFileName: row.source_file_name,
     monthLabel: row.month_label,
     startDate: row.start_date,
     endDate: row.end_date,
     movementCount: row.movement_count,
-    accountCount: row.account_count,
+    dailyRowCount: row.daily_row_count,
+    anticipatedCount: row.anticipated_count,
+    variationCount: row.variation_count,
     initialBalanceCents: row.initial_balance_cents,
-    currentForecastCents: row.current_forecast_cents,
+    closingBalanceCents: row.closing_balance_cents,
     dataset: row.dataset ?? null,
     metadata: row.metadata ?? {},
     createdBy: row.created_by ?? null,
@@ -65,11 +69,11 @@ export function mapCashFlowVersionRow(row: any): CashFlowVersion {
   };
 }
 
-export async function loadPublishedCashFlow(
+export async function loadPublishedCashFlowReport(
   client?: SupabaseQueryClient | null,
-): Promise<CashFlowVersionDataset> {
+): Promise<CashFlowReportVersionDataset> {
   if (isLocalTestMode && !client) {
-    return loadLocalPublishedCashFlow();
+    return loadLocalPublishedCashFlowReport();
   }
 
   const db = getClient(client);
@@ -78,7 +82,7 @@ export async function loadPublishedCashFlow(
   }
 
   const { data, error } = await db
-    .from('cash_flow_versions')
+    .from('cash_flow_reports')
     .select('*')
     .eq('status', 'published')
     .order('published_at', { ascending: false })
@@ -86,22 +90,22 @@ export async function loadPublishedCashFlow(
     .maybeSingle();
 
   if (error) {
-    throw new Error('Nao foi possivel carregar a previsao financeira publicada.');
+    throw new Error('Nao foi possivel carregar o fluxo de caixa publicado.');
   }
 
   if (!data) {
     return { version: null, dataset: null };
   }
 
-  const version = mapCashFlowVersionRow(data);
+  const version = mapCashFlowReportVersionRow(data);
   return { version, dataset: version.dataset };
 }
 
-export async function loadAdminCashFlowVersions(
+export async function loadAdminCashFlowReportVersions(
   client?: SupabaseQueryClient | null,
-): Promise<CashFlowVersion[]> {
+): Promise<CashFlowReportVersion[]> {
   if (isLocalTestMode && !client) {
-    return loadLocalAdminCashFlowVersions();
+    return loadLocalAdminCashFlowReportVersions();
   }
 
   const db = getClient(client);
@@ -110,23 +114,23 @@ export async function loadAdminCashFlowVersions(
   }
 
   const { data, error } = await db
-    .from('cash_flow_versions')
+    .from('cash_flow_reports')
     .select(VERSION_LIST_COLUMNS)
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error('Nao foi possivel carregar o historico da previsao financeira.');
+    throw new Error('Nao foi possivel carregar o historico do fluxo de caixa.');
   }
 
-  return (data ?? []).map(mapCashFlowVersionRow);
+  return (data ?? []).map(mapCashFlowReportVersionRow);
 }
 
-export async function loadCashFlowVersion(
+export async function loadCashFlowReportVersion(
   versionId: string,
   client?: SupabaseQueryClient | null,
-): Promise<CashFlowVersionDataset> {
+): Promise<CashFlowReportVersionDataset> {
   if (isLocalTestMode && !client) {
-    return loadLocalCashFlowVersion(versionId);
+    return loadLocalCashFlowReportVersion(versionId);
   }
 
   const db = getClient(client);
@@ -135,30 +139,30 @@ export async function loadCashFlowVersion(
   }
 
   const { data, error } = await db
-    .from('cash_flow_versions')
+    .from('cash_flow_reports')
     .select('*')
     .eq('id', versionId)
     .maybeSingle();
 
   if (error) {
-    throw new Error('Nao foi possivel carregar a versao da previsao financeira.');
+    throw new Error('Nao foi possivel carregar a versao do fluxo de caixa.');
   }
 
   if (!data) {
     return { version: null, dataset: null };
   }
 
-  const version = mapCashFlowVersionRow(data);
+  const version = mapCashFlowReportVersionRow(data);
   return { version, dataset: version.dataset };
 }
 
-export async function saveCashFlowDraft(
-  dataset: CashFlowDataset,
+export async function saveCashFlowReportDraft(
+  dataset: CashFlowReportDataset,
   userId?: string,
   client?: SupabaseQueryClient | null,
-): Promise<CashFlowVersion | null> {
+): Promise<CashFlowReportVersion | null> {
   if (isLocalTestMode && !client) {
-    return saveLocalCashFlowDraft(dataset, userId);
+    return saveLocalCashFlowReportDraft(dataset, userId);
   }
 
   const db = getClient(client);
@@ -166,24 +170,27 @@ export async function saveCashFlowDraft(
     return null;
   }
 
-  const metrics = calculateCashFlowMetrics(dataset);
+  const metrics = calculateCashFlowReportMetrics(dataset);
   const metadata = {
-    issueCount: dataset.issues?.length ?? 0,
-    dailyEntryCount: dataset.dailyEntries?.length ?? 0,
+    issueCount: dataset.issues.length,
+    duplicateDocumentIssue: dataset.issues.some((issue) => issue.type === 'duplicate_document_numbers'),
+    cashFlowMovementCount: dataset.cashFlowMovements.length,
   };
 
   const { data, error } = await db
-    .from('cash_flow_versions')
+    .from('cash_flow_reports')
     .insert({
       status: 'draft',
-      source_file_name: dataset.sourceFileName ?? 'previsao-financeira.xlsx',
+      source_file_name: dataset.sourceFileName ?? 'fluxo-de-caixa.xlsx',
       month_label: dataset.monthLabel,
       start_date: dataset.startDate,
       end_date: dataset.endDate,
       movement_count: dataset.movements.length,
-      account_count: dataset.bankAccounts.length,
-      initial_balance_cents: metrics.initialBalanceCents,
-      current_forecast_cents: metrics.currentForecastClosingCents,
+      daily_row_count: dataset.dailyRows.length,
+      anticipated_count: dataset.anticipatedMovements.length,
+      variation_count: dataset.variations.length,
+      initial_balance_cents: dataset.initialBalanceCents,
+      closing_balance_cents: metrics.closingBalanceCents,
       dataset,
       metadata,
       created_by: userId ?? null,
@@ -192,31 +199,31 @@ export async function saveCashFlowDraft(
     .single();
 
   if (error) {
-    throw new Error('Nao foi possivel criar a versao da previsao financeira.');
+    throw new Error('Nao foi possivel criar a versao do fluxo de caixa.');
   }
 
-  return mapCashFlowVersionRow(data);
+  return mapCashFlowReportVersionRow(data);
 }
 
-export async function publishCashFlowVersion(
+export async function publishCashFlowReportVersion(
   versionId: string,
   client?: SupabaseQueryClient | null,
 ): Promise<void> {
   if (isLocalTestMode && !client) {
-    publishLocalCashFlowVersion(versionId);
+    publishLocalCashFlowReportVersion(versionId);
     return;
   }
 
   const db = getClient(client);
   if (!db?.rpc) {
-    throw new Error('Supabase nao esta configurado para publicar a previsao financeira.');
+    throw new Error('Supabase nao esta configurado para publicar o fluxo de caixa.');
   }
 
-  const { error } = await db.rpc('publish_cash_flow_version', {
+  const { error } = await db.rpc('publish_cash_flow_report', {
     target_version_id: versionId,
   });
 
   if (error) {
-    throw new Error('Nao foi possivel publicar a versao da previsao financeira.');
+    throw new Error('Nao foi possivel publicar a versao do fluxo de caixa.');
   }
 }

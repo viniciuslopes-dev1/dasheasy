@@ -59,7 +59,7 @@ describe('CashFlowUpload', () => {
     const file = new File(['cash-flow'], 'fluxo.xlsx', {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     });
-    fireEvent.change(screen.getByLabelText('Selecionar planilha de fluxo de caixa'), {
+    fireEvent.change(screen.getByLabelText('Selecionar planilha de previsão financeira'), {
       target: { files: [file] },
     });
 

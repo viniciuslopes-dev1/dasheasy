@@ -3,6 +3,7 @@ import { AlertTriangle, CheckCircle2, FileSpreadsheet, UploadCloud } from 'lucid
 import { saveDashboardDraft } from '../services/dashboardVersionService';
 import { analyzeExcelFile } from '../services/excelImportService';
 import { supabase } from '../lib/supabase';
+import { isLocalTestMode } from '../services/localTestMode';
 import type { DashboardVersion, ExcelAnalysis } from '../types/financial';
 import { formatCurrency } from '../utils/formatCurrency';
 
@@ -58,14 +59,16 @@ export default function ExcelUpload({ onImported, userId }: ExcelUploadProps) {
     setError('');
     setSuccess('');
     try {
-      if (supabase && !userId) {
+      if (!isLocalTestMode && supabase && !userId) {
         throw new Error('Faça login como administrador para salvar a versão no Supabase.');
       }
 
       const version = await saveDashboardDraft(selectedAnalysis, fileName, userId);
       onImported(selectedAnalysis, version);
       setSuccess(
-        supabase
+        isLocalTestMode
+          ? 'Rascunho salvo somente neste navegador. Publique para atualizar a visualização local.'
+          : supabase
           ? 'Rascunho salvo. Revise os dados e clique em Publicar dashboard para atualizar o link principal.'
           : 'Supabase não configurado: dados carregados localmente para análise.',
       );

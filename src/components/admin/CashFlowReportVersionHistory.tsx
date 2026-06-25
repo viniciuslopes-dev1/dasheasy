@@ -1,9 +1,9 @@
 import { CheckCircle2, Clock3, RotateCcw, X } from 'lucide-react';
-import type { CashFlowVersion } from '../../types/cashFlow';
+import type { CashFlowReportVersion } from '../../types/cashFlowReport';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-interface CashFlowVersionHistoryProps {
-  versions: CashFlowVersion[];
+interface CashFlowReportVersionHistoryProps {
+  versions: CashFlowReportVersion[];
   activeVersionId?: string;
   isPublishing: boolean;
   onClose: () => void;
@@ -22,20 +22,20 @@ function formatDate(value: string | null): string {
   }).format(new Date(value));
 }
 
-export default function CashFlowVersionHistory({
+export default function CashFlowReportVersionHistory({
   versions,
   activeVersionId,
   isPublishing,
   onClose,
   onSelectVersion,
   onPublishVersion,
-}: CashFlowVersionHistoryProps) {
+}: CashFlowReportVersionHistoryProps) {
   return (
-    <aside className="version-drawer" aria-label="Historico da previsão financeira">
+    <aside className="version-drawer" aria-label="Historico do fluxo de caixa">
       <div className="version-drawer-header">
         <div>
           <span className="section-label">Historico</span>
-          <h2>Historico da previsão financeira</h2>
+          <h2>Historico do fluxo de caixa</h2>
           <p>Revise, publique ou restaure uma versao anterior.</p>
         </div>
         <button type="button" className="icon-button" aria-label="Fechar historico" onClick={onClose}>
@@ -44,7 +44,7 @@ export default function CashFlowVersionHistory({
       </div>
 
       {versions.length === 0 ? (
-        <div className="version-empty">Nenhuma versao de previsão salva. Importe uma planilha para criar o primeiro rascunho.</div>
+        <div className="version-empty">Nenhuma versao de fluxo salva. Importe uma planilha para criar o primeiro rascunho.</div>
       ) : (
         <div className="version-list">
           {versions.map((version) => {
@@ -62,9 +62,9 @@ export default function CashFlowVersionHistory({
                   <strong>Versao {version.versionNumber}</strong>
                   <small>{version.sourceFileName}</small>
                   <small>
-                    {version.monthLabel} - {version.movementCount} movimentacoes
+                    {version.movementCount} lançamentos • {version.dailyRowCount} dias • {version.anticipatedCount} antecipados
                   </small>
-                  <small>Previsao: {formatCurrency(version.currentForecastCents)}</small>
+                  <small>Saldo final: {formatCurrency(version.closingBalanceCents)}</small>
                   <small>
                     {version.status === 'published'
                       ? `Publicado em ${formatDate(version.publishedAt)}`

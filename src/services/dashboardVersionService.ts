@@ -6,6 +6,14 @@ import type {
   ExcelAnalysis,
   FinancialRecord,
 } from '../types/financial';
+import { isLocalTestMode } from './localTestMode';
+import {
+  loadLocalAdminDashboardVersions,
+  loadLocalDashboardVersion,
+  loadLocalPublishedDashboard,
+  publishLocalDashboardVersion,
+  saveLocalDashboardDraft,
+} from './localVersionStore';
 
 type SupabaseQueryClient = {
   from: (table: string) => any;
@@ -109,6 +117,10 @@ async function loadVersionRecords(versionId: string, client?: SupabaseQueryClien
 }
 
 export async function loadPublishedDashboard(client?: SupabaseQueryClient | null): Promise<DashboardDataset> {
+  if (isLocalTestMode && !client) {
+    return loadLocalPublishedDashboard();
+  }
+
   const db = getClient(client);
   if (!db) {
     return { version: null, records: [] };
@@ -136,6 +148,10 @@ export async function loadPublishedDashboard(client?: SupabaseQueryClient | null
 }
 
 export async function loadDashboardVersion(versionId: string, client?: SupabaseQueryClient | null): Promise<DashboardDataset> {
+  if (isLocalTestMode && !client) {
+    return loadLocalDashboardVersion(versionId);
+  }
+
   const db = getClient(client);
   if (!db) {
     return { version: null, records: [] };
@@ -157,6 +173,10 @@ export async function loadDashboardVersion(versionId: string, client?: SupabaseQ
 }
 
 export async function loadAdminDashboardVersions(client?: SupabaseQueryClient | null): Promise<DashboardVersion[]> {
+  if (isLocalTestMode && !client) {
+    return loadLocalAdminDashboardVersions();
+  }
+
   const db = getClient(client);
   if (!db) {
     return [];
@@ -175,6 +195,11 @@ export async function loadAdminDashboardVersions(client?: SupabaseQueryClient | 
 }
 
 export async function publishDashboardVersion(versionId: string, client?: SupabaseQueryClient | null): Promise<void> {
+  if (isLocalTestMode && !client) {
+    publishLocalDashboardVersion(versionId);
+    return;
+  }
+
   const db = getClient(client);
   if (!db?.rpc) {
     throw new Error('Supabase não está configurado para publicar versões.');
@@ -195,6 +220,10 @@ export async function saveDashboardDraft(
   userId?: string,
   client?: SupabaseQueryClient | null,
 ): Promise<DashboardVersion | null> {
+  if (isLocalTestMode && !client) {
+    return saveLocalDashboardDraft(analysis, sourceFileName, userId);
+  }
+
   const db = getClient(client);
   if (!db) {
     return null;

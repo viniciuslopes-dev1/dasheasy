@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { History, Home, LogOut, PieChart, UploadCloud, WalletCards, X } from 'lucide-react';
+import { History, Home, LogOut, PieChart, Table2, UploadCloud, WalletCards, X } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import {
   loadAdminDashboardVersions,
@@ -14,20 +14,50 @@ import {
   loadPublishedCashFlow,
   publishCashFlowVersion,
 } from './services/cashFlowVersionService';
+import {
+  loadAdminCashFlowReportVersions,
+  loadCashFlowReportVersion,
+  loadPublishedCashFlowReport,
+  publishCashFlowReportVersion,
+} from './services/cashFlowReportVersionService';
 import { isDashboardAdmin } from './services/adminAuthorizationService';
+import { isLocalTestMode, LOCAL_TEST_USER_ID, LOCAL_TEST_USER_NAME } from './services/localTestMode';
 import type { CashFlowDataset, CashFlowVersion, CashFlowVersionDataset } from './types/cashFlow';
+import type {
+  CashFlowReportDataset,
+  CashFlowReportVersion,
+  CashFlowReportVersionDataset,
+} from './types/cashFlowReport';
 import type { DashboardDataset, DashboardVersion, ExcelAnalysis } from './types/financial';
 import type { AppView } from './types/navigation';
 
 const EMPTY_DATASET: DashboardDataset = { version: null, records: [] };
 const EMPTY_CASH_FLOW_DATASET: CashFlowVersionDataset = { version: null, dataset: null };
+const EMPTY_CASH_FLOW_REPORT_DATASET: CashFlowReportVersionDataset = { version: null, dataset: null };
 const PUBLIC_DASHBOARD_CACHE_KEY = 'dasheasy:published-dashboard';
 const PUBLIC_CASH_FLOW_CACHE_KEY = 'dasheasy:published-cash-flow';
+const PUBLIC_CASH_FLOW_REPORT_CACHE_KEY = 'dasheasy:published-cash-flow-report';
+const LOCAL_TEST_SESSION = {
+  access_token: 'local-test-token',
+  refresh_token: 'local-test-refresh',
+  expires_in: 3600,
+  token_type: 'bearer',
+  user: {
+    id: LOCAL_TEST_USER_ID,
+    email: 'admin-local@dasheasy.test',
+    user_metadata: {
+      name: LOCAL_TEST_USER_NAME,
+    },
+  },
+} as unknown as Session;
 
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const AdminLogin = lazy(() => import('./components/admin/AdminLogin'));
+const CashFlowReportVersionHistory = lazy(() => import('./components/admin/CashFlowReportVersionHistory'));
 const CashFlowVersionHistory = lazy(() => import('./components/admin/CashFlowVersionHistory'));
 const VersionHistory = lazy(() => import('./components/admin/VersionHistory'));
+const CashFlowReportDashboard = lazy(() => import('./components/cash-flow-report/CashFlowReportDashboard'));
+const CashFlowReportUpload = lazy(() => import('./components/cash-flow-report/CashFlowReportUpload'));
 const ExcelUpload = lazy(() => import('./components/ExcelUpload'));
 const CashFlowDashboard = lazy(() => import('./components/cash-flow/CashFlowDashboard'));
 const CashFlowUpload = lazy(() => import('./components/cash-flow/CashFlowUpload'));
@@ -84,22 +114,52 @@ function writeCachedPublishedCashFlow(dataset: CashFlowVersionDataset) {
   }
 }
 
+function readCachedPublishedCashFlowReport(): CashFlowReportVersionDataset {
+  try {
+    const cached = window.localStorage.getItem(PUBLIC_CASH_FLOW_REPORT_CACHE_KEY);
+    return cached ? JSON.parse(cached) : EMPTY_CASH_FLOW_REPORT_DATASET;
+  } catch {
+    return EMPTY_CASH_FLOW_REPORT_DATASET;
+  }
+}
+
+function writeCachedPublishedCashFlowReport(dataset: CashFlowReportVersionDataset) {
+  try {
+    if (dataset.version) {
+      window.localStorage.setItem(PUBLIC_CASH_FLOW_REPORT_CACHE_KEY, JSON.stringify(dataset));
+    } else {
+      window.localStorage.removeItem(PUBLIC_CASH_FLOW_REPORT_CACHE_KEY);
+    }
+  } catch {
+    // localStorage can be unavailable in private contexts; the app still works without cache.
+  }
+}
+
 export default function App() {
   const isAdminRoute = window.location.pathname.startsWith('/admin');
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState(!supabase);
-  const [isAdminAuthorizationReady, setIsAdminAuthorizationReady] = useState(!isAdminRoute || !supabase);
-  const [isAdminAuthorized, setIsAdminAuthorized] = useState(false);
+  const [session, setSession] = useState<Session | null>(() =>
+    isLocalTestMode && isAdminRoute ? LOCAL_TEST_SESSION : null,
+  );
+  const [isAuthReady, setIsAuthReady] = useState(isLocalTestMode || !supabase);
+  const [isAdminAuthorizationReady, setIsAdminAuthorizationReady] = useState(
+    isLocalTestMode || !isAdminRoute || !supabase,
+  );
+  const [isAdminAuthorized, setIsAdminAuthorized] = useState(isLocalTestMode && isAdminRoute);
   const [publishedDataset, setPublishedDataset] = useState<DashboardDataset>(() =>
-    isAdminRoute ? EMPTY_DATASET : readCachedPublishedDashboard(),
+    isAdminRoute || isLocalTestMode ? EMPTY_DATASET : readCachedPublishedDashboard(),
   );
   const [publishedCashFlow, setPublishedCashFlow] = useState<CashFlowVersionDataset>(() =>
-    isAdminRoute ? EMPTY_CASH_FLOW_DATASET : readCachedPublishedCashFlow(),
+    isAdminRoute || isLocalTestMode ? EMPTY_CASH_FLOW_DATASET : readCachedPublishedCashFlow(),
+  );
+  const [publishedCashFlowReport, setPublishedCashFlowReport] = useState<CashFlowReportVersionDataset>(() =>
+    isAdminRoute || isLocalTestMode ? EMPTY_CASH_FLOW_REPORT_DATASET : readCachedPublishedCashFlowReport(),
   );
   const [adminDataset, setAdminDataset] = useState<DashboardDataset>(EMPTY_DATASET);
   const [adminCashFlow, setAdminCashFlow] = useState<CashFlowVersionDataset>(EMPTY_CASH_FLOW_DATASET);
+  const [adminCashFlowReport, setAdminCashFlowReport] = useState<CashFlowReportVersionDataset>(EMPTY_CASH_FLOW_REPORT_DATASET);
   const [versions, setVersions] = useState<DashboardVersion[]>([]);
   const [cashFlowVersions, setCashFlowVersions] = useState<CashFlowVersion[]>([]);
+  const [cashFlowReportVersions, setCashFlowReportVersions] = useState<CashFlowReportVersion[]>([]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [activeView, setActiveView] = useState<AppView>('overview');
@@ -116,12 +176,16 @@ export default function App() {
       ? 'Comparações'
       : activeView === 'cashFlow'
         ? 'Fluxo de caixa'
+      : activeView === 'forecast'
+        ? 'Previsão financeira'
         : 'Visão geral';
   const pageDescription = isAdminRoute
     ? 'Importe, publique e restaure versões do dashboard'
     : activeView === 'comparisons'
       ? 'Compare departamentos, agrupamentos e responsáveis'
       : activeView === 'cashFlow'
+        ? 'Acompanhe débitos, créditos, antecipados e saldo diário'
+      : activeView === 'forecast'
         ? 'Acompanhe previsão inicial, saldo projetado e variações'
         : 'Análise consolidada dos valores publicados';
 
@@ -143,14 +207,19 @@ export default function App() {
     setIsDashboardLoading(true);
     setError('');
     try {
-      const [dataset, cashFlowDataset] = await Promise.all([
+      const [dataset, cashFlowDataset, cashFlowReportDataset] = await Promise.all([
         loadPublishedDashboard(),
         loadPublishedCashFlow(),
+        loadPublishedCashFlowReport(),
       ]);
       setPublishedDataset(dataset);
       setPublishedCashFlow(cashFlowDataset);
-      writeCachedPublishedDashboard(dataset);
-      writeCachedPublishedCashFlow(cashFlowDataset);
+      setPublishedCashFlowReport(cashFlowReportDataset);
+      if (!isLocalTestMode) {
+        writeCachedPublishedDashboard(dataset);
+        writeCachedPublishedCashFlow(cashFlowDataset);
+        writeCachedPublishedCashFlowReport(cashFlowReportDataset);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar o dashboard publicado.');
     } finally {
@@ -166,21 +235,27 @@ export default function App() {
     setIsAdminLoading(true);
     setError('');
     try {
-      const [nextVersions, nextCashFlowVersions] = await Promise.all([
+      const [nextVersions, nextCashFlowVersions, nextCashFlowReportVersions] = await Promise.all([
         loadAdminDashboardVersions(),
         loadAdminCashFlowVersions(),
+        loadAdminCashFlowReportVersions(),
       ]);
       setVersions(nextVersions);
       setCashFlowVersions(nextCashFlowVersions);
+      setCashFlowReportVersions(nextCashFlowReportVersions);
 
-      const [nextDashboard, nextCashFlow] = await Promise.all([
+      const [nextDashboard, nextCashFlow, nextCashFlowReport] = await Promise.all([
         nextVersions[0] ? loadDashboardVersion(nextVersions[0].id) : Promise.resolve(EMPTY_DATASET),
         nextCashFlowVersions[0]
           ? loadCashFlowVersion(nextCashFlowVersions[0].id)
           : Promise.resolve(EMPTY_CASH_FLOW_DATASET),
+        nextCashFlowReportVersions[0]
+          ? loadCashFlowReportVersion(nextCashFlowReportVersions[0].id)
+          : Promise.resolve(EMPTY_CASH_FLOW_REPORT_DATASET),
       ]);
       setAdminDataset(nextDashboard);
       setAdminCashFlow(nextCashFlow);
+      setAdminCashFlowReport(nextCashFlowReport);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível carregar a área administrativa.');
     } finally {
@@ -195,6 +270,12 @@ export default function App() {
   }, [isAdminRoute, refreshPublishedData]);
 
   useEffect(() => {
+    if (isLocalTestMode) {
+      setSession(isAdminRoute ? LOCAL_TEST_SESSION : null);
+      setIsAuthReady(true);
+      return;
+    }
+
     if (!supabase) {
       return;
     }
@@ -212,12 +293,19 @@ export default function App() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isAdminRoute]);
 
   useEffect(() => {
     let isCancelled = false;
 
     if (!isAdminRoute || !isAuthReady) {
+      return;
+    }
+
+    if (isLocalTestMode) {
+      setSession(LOCAL_TEST_SESSION);
+      setIsAdminAuthorized(true);
+      setIsAdminAuthorizationReady(true);
       return;
     }
 
@@ -281,6 +369,12 @@ export default function App() {
     await refreshAdminWorkspace();
   }
 
+  async function handleCashFlowReportImported(dataset: CashFlowReportDataset, version?: CashFlowReportVersion | null) {
+    setAdminCashFlowReport({ version: version ?? null, dataset });
+    setIsSettingsOpen(false);
+    await refreshAdminWorkspace();
+  }
+
   async function handleSelectVersion(versionId: string) {
     setError('');
     setIsAdminLoading(true);
@@ -301,6 +395,19 @@ export default function App() {
     try {
       setAdminCashFlow(await loadCashFlowVersion(versionId));
     } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nao foi possivel abrir a versao de previsao financeira.');
+    } finally {
+      setIsAdminLoading(false);
+    }
+  }
+
+  async function handleSelectCashFlowReportVersion(versionId: string) {
+    setError('');
+    setIsAdminLoading(true);
+    setIsHistoryOpen(false);
+    try {
+      setAdminCashFlowReport(await loadCashFlowReportVersion(versionId));
+    } catch (err) {
       setError(err instanceof Error ? err.message : 'Nao foi possivel abrir a versao do fluxo de caixa.');
     } finally {
       setIsAdminLoading(false);
@@ -315,7 +422,9 @@ export default function App() {
       setAdminDataset(await loadDashboardVersion(versionId));
       const dataset = await loadPublishedDashboard();
       setPublishedDataset(dataset);
-      writeCachedPublishedDashboard(dataset);
+      if (!isLocalTestMode) {
+        writeCachedPublishedDashboard(dataset);
+      }
       setVersions(await loadAdminDashboardVersions());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível publicar a versão selecionada.');
@@ -332,8 +441,29 @@ export default function App() {
       setAdminCashFlow(await loadCashFlowVersion(versionId));
       const dataset = await loadPublishedCashFlow();
       setPublishedCashFlow(dataset);
-      writeCachedPublishedCashFlow(dataset);
+      if (!isLocalTestMode) {
+        writeCachedPublishedCashFlow(dataset);
+      }
       setCashFlowVersions(await loadAdminCashFlowVersions());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Nao foi possivel publicar a previsao financeira.');
+    } finally {
+      setIsCashFlowPublishing(false);
+    }
+  }
+
+  async function handlePublishCashFlowReportVersion(versionId: string) {
+    setIsCashFlowPublishing(true);
+    setError('');
+    try {
+      await publishCashFlowReportVersion(versionId);
+      setAdminCashFlowReport(await loadCashFlowReportVersion(versionId));
+      const dataset = await loadPublishedCashFlowReport();
+      setPublishedCashFlowReport(dataset);
+      if (!isLocalTestMode) {
+        writeCachedPublishedCashFlowReport(dataset);
+      }
+      setCashFlowReportVersions(await loadAdminCashFlowReportVersions());
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nao foi possivel publicar o fluxo de caixa.');
     } finally {
@@ -342,13 +472,23 @@ export default function App() {
   }
 
   async function handleSignOut() {
+    if (isLocalTestMode) {
+      setIsSettingsOpen(false);
+      setIsHistoryOpen(false);
+      setSession(LOCAL_TEST_SESSION);
+      setIsAdminAuthorized(true);
+      return;
+    }
+
     await supabase?.auth.signOut();
     setSession(null);
     setIsAdminAuthorized(false);
     setAdminDataset(EMPTY_DATASET);
     setAdminCashFlow(EMPTY_CASH_FLOW_DATASET);
+    setAdminCashFlowReport(EMPTY_CASH_FLOW_REPORT_DATASET);
     setVersions([]);
     setCashFlowVersions([]);
+    setCashFlowReportVersions([]);
   }
 
   if (isAdminRoute && (!isAuthReady || !isAdminAuthorizationReady)) {
@@ -372,7 +512,13 @@ export default function App() {
 
   const activeDataset = isAdminRoute ? adminDataset : publishedDataset;
   const activeCashFlow = isAdminRoute ? adminCashFlow : publishedCashFlow;
-  const activeVersionCount = activeView === 'cashFlow' ? cashFlowVersions.length : versions.length;
+  const activeCashFlowReport = isAdminRoute ? adminCashFlowReport : publishedCashFlowReport;
+  const activeVersionCount =
+    activeView === 'cashFlow'
+      ? cashFlowReportVersions.length
+      : activeView === 'forecast'
+        ? cashFlowVersions.length
+        : versions.length;
 
   return (
     <main className="app-frame">
@@ -395,12 +541,20 @@ export default function App() {
             <PieChart size={22} />
           </button>
           <button
+            className={activeView === 'forecast' ? 'side-nav-item active' : 'side-nav-item'}
+            type="button"
+            aria-label="Previsão financeira"
+            onClick={() => setActiveView('forecast')}
+          >
+            <WalletCards size={22} />
+          </button>
+          <button
             className={activeView === 'cashFlow' ? 'side-nav-item active' : 'side-nav-item'}
             type="button"
             aria-label="Fluxo de caixa"
             onClick={() => setActiveView('cashFlow')}
           >
-            <WalletCards size={22} />
+            <Table2 size={22} />
           </button>
           {isAdminRoute ? (
             <button
@@ -424,6 +578,7 @@ export default function App() {
           </div>
           {isAdminRoute ? (
             <div className="topbar-actions">
+              {isLocalTestMode ? <span className="local-test-pill">Teste local</span> : null}
               <button className="import-top-button" type="button" onClick={() => setIsSettingsOpen(true)}>
                 <UploadCloud size={17} />
                 Importar
@@ -451,6 +606,13 @@ export default function App() {
             </button>
             <button
               type="button"
+              className={activeView === 'forecast' ? 'active' : ''}
+              onClick={() => setActiveView('forecast')}
+            >
+              Previsão
+            </button>
+            <button
+              type="button"
               className={activeView === 'cashFlow' ? 'active' : ''}
               onClick={() => setActiveView('cashFlow')}
             >
@@ -465,6 +627,7 @@ export default function App() {
               activeView={activeView}
               dataset={activeDataset}
               cashFlowDataset={activeCashFlow.dataset}
+              cashFlowReportDataset={activeCashFlowReport.dataset}
               isLoading={isAdminLoading}
               error={error}
               onOpenSettings={() => setIsSettingsOpen(true)}
@@ -475,6 +638,10 @@ export default function App() {
             <ComparisonDashboard records={activeDataset.records} />
           </Suspense>
         ) : activeView === 'cashFlow' ? (
+          <Suspense fallback={<RouteLoading />}>
+            {isDashboardLoading ? <RouteLoading /> : <CashFlowReportDashboard dataset={activeCashFlowReport.dataset} />}
+          </Suspense>
+        ) : activeView === 'forecast' ? (
           <Suspense fallback={<RouteLoading />}>
             {isDashboardLoading ? <RouteLoading /> : <CashFlowDashboard dataset={activeCashFlow.dataset} />}
           </Suspense>
@@ -505,7 +672,17 @@ export default function App() {
             </div>
             <Suspense fallback={<RouteLoading />}>
               {activeView === 'cashFlow' ? (
-                <CashFlowUpload onImported={handleCashFlowImported} userId={session?.user.id} />
+                <CashFlowReportUpload
+                  onImported={handleCashFlowReportImported}
+                  userId={session?.user.id}
+                  baselineDataset={adminCashFlowReport.dataset}
+                />
+              ) : activeView === 'forecast' ? (
+                <CashFlowUpload
+                  onImported={handleCashFlowImported}
+                  userId={session?.user.id}
+                  baselineDataset={adminCashFlow.dataset}
+                />
               ) : (
                 <ExcelUpload onImported={handleImported} userId={session?.user.id} />
               )}
@@ -524,6 +701,15 @@ export default function App() {
           />
           <Suspense fallback={<RouteLoading />}>
             {activeView === 'cashFlow' ? (
+              <CashFlowReportVersionHistory
+                versions={cashFlowReportVersions}
+                activeVersionId={adminCashFlowReport.version?.id}
+                isPublishing={isCashFlowPublishing}
+                onClose={() => setIsHistoryOpen(false)}
+                onSelectVersion={handleSelectCashFlowReportVersion}
+                onPublishVersion={handlePublishCashFlowReportVersion}
+              />
+            ) : activeView === 'forecast' ? (
               <CashFlowVersionHistory
                 versions={cashFlowVersions}
                 activeVersionId={adminCashFlow.version?.id}

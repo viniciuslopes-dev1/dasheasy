@@ -1,6 +1,7 @@
 import * as XLSX from '@e965/xlsx';
 import type {
   BankAccount,
+  CashFlowChange,
   CashFlowDailyEntry,
   CashFlowDataset,
   CashFlowImportIssue,
@@ -26,7 +27,10 @@ export function validateCashFlowExcelFile(file: File): string | null {
   return null;
 }
 
-export async function analyzeCashFlowExcelFile(file: File): Promise<CashFlowImportResult> {
+export async function analyzeCashFlowExcelFile(
+  file: File,
+  previousDataset?: CashFlowDataset | null,
+): Promise<CashFlowImportResult> {
   const validationError = validateCashFlowExcelFile(file);
   if (validationError) {
     throw new Error(validationError);
@@ -34,10 +38,14 @@ export async function analyzeCashFlowExcelFile(file: File): Promise<CashFlowImpo
 
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-  return analyzeCashFlowWorkbook(workbook, file.name);
+  return analyzeCashFlowWorkbook(workbook, file.name, previousDataset);
 }
 
-export function analyzeCashFlowWorkbook(workbook: XLSX.WorkBook, fileName = 'planilha.xlsx'): CashFlowImportResult {
+export function analyzeCashFlowWorkbook(
+  workbook: XLSX.WorkBook,
+  fileName = 'planilha.xlsx',
+  previousDataset?: CashFlowDataset | null,
+): CashFlowImportResult {
   const sheetNames = workbook.SheetNames;
   const issues: CashFlowImportIssue[] = [];
   const flowSheetName = findSheetName(sheetNames, 'FLUXO DE CAIXA');
@@ -65,24 +73,34 @@ export function analyzeCashFlowWorkbook(workbook: XLSX.WorkBook, fileName = 'pla
     });
   });
 
-  const movements = [...debitMovements, ...creditMovements].sort((a, b) => a.date.localeCompare(b.date));
+  const importedMovements = [...debitMovements, ...creditMovements].sort((a, b) => a.date.localeCompare(b.date));
+  const movements = previousDataset ? mergeMovements(previousDataset.movements, importedMovements) : importedMovements;
+  const dailyEntries = previousDataset
+    ? mergeDailyEntries(previousDataset.dailyEntries ?? [], flow.dailyEntries)
+    : flow.dailyEntries;
+  const bankAccounts = mergeBankAccounts(previousDataset?.bankAccounts ?? [], flow.bankAccounts);
   const lastDailyEntry = flow.dailyEntries[flow.dailyEntries.length - 1];
-  const finalForecastCents = lastDailyEntry?.projectedBalanceCents ?? flow.initialBalanceCents;
+  const accumulatedLastDailyEntry = dailyEntries[dailyEntries.length - 1];
+  const finalForecastCents = accumulatedLastDailyEntry?.projectedBalanceCents ?? lastDailyEntry?.projectedBalanceCents ?? flow.initialBalanceCents;
+  const startDate = dailyEntries[0]?.date ?? new Date().toISOString().slice(0, 10);
+  const endDate = accumulatedLastDailyEntry?.date ?? startDate;
+  const newChanges = previousDataset ? buildChanges(previousDataset.movements, importedMovements, fileName) : [];
   const dataset: CashFlowDataset = {
-    monthLabel: buildMonthLabel(flow.dailyEntries[0]?.date ?? new Date().toISOString().slice(0, 10)),
-    startDate: flow.dailyEntries[0]?.date ?? new Date().toISOString().slice(0, 10),
-    endDate: lastDailyEntry?.date ?? flow.dailyEntries[0]?.date ?? new Date().toISOString().slice(0, 10),
-    initialForecastClosingCents: finalForecastCents,
+    monthLabel: buildPeriodLabel(startDate, endDate),
+    startDate,
+    endDate,
+    initialForecastClosingCents: previousDataset?.initialForecastClosingCents ?? finalForecastCents,
     sourceFileName: fileName,
     importedAt: new Date().toISOString(),
-    bankAccounts: flow.bankAccounts,
-    dailyEntries: flow.dailyEntries,
+    bankAccounts,
+    dailyEntries,
     movements,
-    changes: [],
+    changes: [...(previousDataset?.changes ?? []), ...newChanges],
     snapshots: [
+      ...(previousDataset?.snapshots ?? []),
       {
-        id: 'snapshot-imported-baseline',
-        snapshotDate: flow.dailyEntries[0]?.date ?? new Date().toISOString().slice(0, 10),
+        id: `snapshot-${Date.now()}-${normalizeTextKey(fileName).toLowerCase().replace(/\s+/g, '-')}`,
+        snapshotDate: new Date().toISOString().slice(0, 10),
         closingForecastCents: finalForecastCents,
       },
     ],
@@ -94,14 +112,145 @@ export function analyzeCashFlowWorkbook(workbook: XLSX.WorkBook, fileName = 'pla
     summary: {
       fileName,
       sheetNames,
-      bankAccountCount: flow.bankAccounts.length,
-      dailyEntryCount: flow.dailyEntries.length,
+      bankAccountCount: bankAccounts.length,
+      dailyEntryCount: dailyEntries.length,
       debitMovementCount: debitMovements.length,
       creditMovementCount: creditMovements.length,
       ignoredSheetNames,
       issues,
     },
   };
+}
+
+function mergeMovements(previousMovements: CashFlowMovement[], importedMovements: CashFlowMovement[]): CashFlowMovement[] {
+  const importedByKey = groupComparableMovements(importedMovements);
+  const usedImportedIds = new Set<string>();
+  const merged = previousMovements.map((previousMovement) => {
+    const replacement = importedByKey
+      .get(createComparableMovementKey(previousMovement))
+      ?.find((candidate) => !usedImportedIds.has(candidate.id));
+
+    if (!replacement) {
+      return previousMovement;
+    }
+
+    usedImportedIds.add(replacement.id);
+    return {
+      ...replacement,
+      id: previousMovement.id,
+      origin:
+        previousMovement.valueCents === replacement.valueCents && previousMovement.date === replacement.date
+          ? previousMovement.origin
+          : 'IMPORTACAO_ATUALIZACAO',
+    };
+  });
+
+  importedMovements.forEach((movement) => {
+    if (!usedImportedIds.has(movement.id)) {
+      merged.push({
+        ...movement,
+        origin: 'IMPORTACAO_ATUALIZACAO',
+      });
+    }
+  });
+
+  return merged.sort((a, b) => a.date.localeCompare(b.date) || a.documentNumber.localeCompare(b.documentNumber));
+}
+
+function mergeDailyEntries(previousEntries: CashFlowDailyEntry[], importedEntries: CashFlowDailyEntry[]): CashFlowDailyEntry[] {
+  const byDate = new Map(previousEntries.map((entry) => [entry.date, entry]));
+  importedEntries.forEach((entry) => {
+    byDate.set(entry.date, entry);
+  });
+  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function mergeBankAccounts(previousAccounts: BankAccount[], importedAccounts: BankAccount[]): BankAccount[] {
+  const byKey = new Map(previousAccounts.map((account) => [createBankAccountKey(account), account]));
+  importedAccounts.forEach((account) => {
+    const key = createBankAccountKey(account);
+    const previous = byKey.get(key);
+    byKey.set(key, {
+      ...account,
+      includeInCash: previous?.includeInCash ?? account.includeInCash,
+    });
+  });
+  return [...byKey.values()];
+}
+
+function buildChanges(
+  previousMovements: CashFlowMovement[],
+  importedMovements: CashFlowMovement[],
+  fileName: string,
+): CashFlowChange[] {
+  const previousByKey = groupComparableMovements(previousMovements);
+  const matchedPreviousIds = new Set<string>();
+  const registeredAt = new Date().toISOString().slice(0, 10);
+
+  return importedMovements.flatMap((movement): CashFlowChange[] => {
+    const previous = previousByKey
+      .get(createComparableMovementKey(movement))
+      ?.find((candidate) => !matchedPreviousIds.has(candidate.id));
+
+    if (!previous) {
+      return [
+        {
+          id: `change-new-${movement.id}`,
+          registeredAt,
+          affectedDate: movement.date,
+          title: `${movement.documentNumber} - ${movement.counterparty}`,
+          changeType: 'CRIADO',
+          movementType: movement.type,
+          impactCents: getMovementSignedImpact(movement),
+          reason: `Titulo novo importado em ${fileName}.`,
+        },
+      ];
+    }
+
+    matchedPreviousIds.add(previous.id);
+    const valueChanged = previous.valueCents !== movement.valueCents;
+    const dateChanged = previous.date !== movement.date;
+    if (!valueChanged && !dateChanged) {
+      return [];
+    }
+
+    const currentImpact = getMovementSignedImpact(movement);
+    const previousImpact = getMovementSignedImpact(previous);
+    return [
+      {
+        id: `change-updated-${movement.id}`,
+        registeredAt,
+        affectedDate: movement.date,
+        title: `${movement.documentNumber} - ${movement.counterparty}`,
+        changeType: valueChanged ? 'VALOR_ALTERADO' : 'DATA_ALTERADA',
+        movementType: movement.type,
+        impactCents: currentImpact - previousImpact,
+        reason: valueChanged
+          ? `Valor alterado de ${previous.valueCents} para ${movement.valueCents}.`
+          : `Data alterada de ${previous.date} para ${movement.date}.`,
+      },
+    ];
+  });
+}
+
+function groupComparableMovements(movements: CashFlowMovement[]) {
+  return movements.reduce<Map<string, CashFlowMovement[]>>((acc, movement) => {
+    const key = createComparableMovementKey(movement);
+    acc.set(key, [...(acc.get(key) ?? []), movement]);
+    return acc;
+  }, new Map());
+}
+
+function createComparableMovementKey(movement: Pick<CashFlowMovement, 'documentNumber' | 'counterparty' | 'type'>): string {
+  return [normalizeTextKey(movement.documentNumber), normalizeTextKey(movement.counterparty), movement.type].join('|');
+}
+
+function createBankAccountKey(account: Pick<BankAccount, 'code' | 'description'>): string {
+  return [normalizeTextKey(account.code), normalizeTextKey(account.description)].join('|');
+}
+
+function getMovementSignedImpact(movement: Pick<CashFlowMovement, 'type' | 'valueCents'>): number {
+  return movement.type === 'CREDITO' ? movement.valueCents : -movement.valueCents;
 }
 
 function findSheetName(sheetNames: string[], target: string): string | undefined {
@@ -261,6 +410,28 @@ function buildMonthLabel(date: string): string {
   const parsed = new Date(`${date}T00:00:00.000Z`);
   const month = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'UTC' }).format(parsed);
   return `${capitalize(month)} de ${parsed.getUTCFullYear()}`;
+}
+
+function buildPeriodLabel(startDate: string, endDate: string): string {
+  if (startDate === endDate) {
+    return buildMonthLabel(startDate);
+  }
+
+  const start = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+  const formatter = new Intl.DateTimeFormat('pt-BR', { month: 'long', timeZone: 'UTC' });
+  const startMonth = capitalize(formatter.format(start));
+  const endMonth = capitalize(formatter.format(end));
+
+  if (start.getUTCFullYear() === end.getUTCFullYear() && startMonth === endMonth) {
+    return `${startMonth} de ${start.getUTCFullYear()}`;
+  }
+
+  if (start.getUTCFullYear() === end.getUTCFullYear()) {
+    return `${startMonth} a ${endMonth} de ${start.getUTCFullYear()}`;
+  }
+
+  return `${startMonth}/${start.getUTCFullYear()} a ${endMonth}/${end.getUTCFullYear()}`;
 }
 
 function capitalize(value: string): string {

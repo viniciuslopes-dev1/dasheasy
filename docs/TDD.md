@@ -66,3 +66,31 @@ Nível de departamento:
 
 - filtra por `group_name` e `department_name`;
 - agrupa por `person_name`.
+
+## Contratos do Fluxo de Caixa
+
+Entrada esperada:
+
+- Uma aba com colunas de documento, tipo (`Débito` ou `Crédito`), razao social,
+  baixado, previsao, data de vencimento e valor total.
+
+Normalizacao:
+
+- `Débito/Crédito` vira `DEBITO` ou `CREDITO`.
+- `Baixado = TRUE` em credito vira `isAnticipated = true`.
+- `Previsão` vira flag visual do titulo.
+- Valores ficam em centavos.
+- Datas `m/d/yy` sao interpretadas como datas da planilha do cliente.
+
+Calculo:
+
+- `cashFlowMovements` exclui antecipados.
+- `dailyRows` enumera o periodo completo e carrega o saldo de um dia para o
+  proximo.
+- `variations` compara a nova importacao com a versao anterior usando documento
+  + razao social + tipo.
+
+Persistencia:
+
+- `cash_flow_reports` guarda o dataset completo em `jsonb`.
+- `publish_cash_flow_report(uuid)` controla a unica versao publicada.

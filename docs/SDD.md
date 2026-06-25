@@ -67,3 +67,26 @@ Camadas propostas:
    - departamento dentro do agrupamento;
    - pessoa/razão social dentro do departamento.
 
+## Diagnostico do Fluxo de Caixa
+
+Arquivo analisado: `Relatorio fluxo de caixa.xlsx`.
+
+- Aba: `Planilha1`.
+- Colunas: `Nº Documento`, `Débito/Crédito`, `Razão Social`, `Baixado`,
+  `Previsão`, `Data Vencimento`, `Valor Total`.
+- Registros validos: 1522.
+- Debitos: 1293.
+- Creditos: 229.
+- Creditos baixados (`Baixado = TRUE`): 6, tratados como `Antecipados`.
+- Periodo: 2026-07-01 a 2026-09-30.
+- Saldo inicial: nao existe na planilha; o modulo informa isso e inicia o
+  calculo em R$ 0,00.
+
+Fluxo calculado:
+
+1. Importar movimentos da planilha.
+2. Separar creditos baixados em `Antecipados`.
+3. Excluir antecipados do calculo diario.
+4. Calcular dia a dia: saldo inicial do dia, debito, credito, liquido e saldo
+   final.
+5. Comparar com a versao anterior para gerar `Variacoes`.

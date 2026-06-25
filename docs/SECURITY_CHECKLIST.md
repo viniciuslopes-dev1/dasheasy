@@ -16,12 +16,13 @@
 - [x] Tratar erros sem stack trace na UI.
 - [x] Validar extensão de arquivo antes da leitura.
 - [x] Não apagar dados antigos ao importar nova planilha.
+- [x] Isolar `VITE_LOCAL_TEST_MODE=true` para desenvolvimento local; produção deve usar `false` ou não definir a variável.
 - [ ] Aplicar `supabase/migrations/002_dashboard_versions.sql` no projeto Supabase de produção.
 - [ ] Criar a conta principal do admin no Supabase Auth com e-mail técnico baseado no nome de acesso.
 - [ ] Inserir o `auth.users.id` dessa conta em `public.admin_users`.
 - [ ] Revisar no painel Supabase se as tabelas novas estão expostas à Data API com RLS ativo.
 - [ ] Definir `company_id` real quando houver multiempresa.
-# Fluxo de caixa
+# Previsao financeira
 
 - [x] `cash_flow_versions` possui RLS habilitado.
 - [x] Visitantes anonimos leem somente a versao publicada.
@@ -30,3 +31,14 @@
 - [x] Publicacao exige `is_dashboard_admin()`.
 - [x] O frontend usa somente a chave publica do Supabase.
 - [x] Grants da Data API foram declarados explicitamente.
+
+# Fluxo de caixa operacional
+
+- [x] `cash_flow_reports` possui RLS habilitado na migration.
+- [x] Visitantes anonimos leem somente a versao publicada.
+- [x] Rascunhos, historico e publicacao exigem usuario autenticado em `admin_users`.
+- [x] Novas versoes exigem `created_by = auth.uid()`.
+- [x] Publicacao exige `is_dashboard_admin()`.
+- [x] A planilha e validada por extensao e limite de 8 MB antes da leitura.
+- [x] Creditos antecipados sao preservados para auditoria, mas nao entram no fluxo.
+- [ ] Aplicar `20260624004145_cash_flow_reports.sql` no Supabase de producao.

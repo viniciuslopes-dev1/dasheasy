@@ -39,7 +39,7 @@ describe('CashFlowVersionHistory', () => {
       />,
     );
 
-    expect(screen.getByText('Historico do fluxo de caixa')).toBeInTheDocument();
+    expect(screen.getByText('Historico da previsão financeira')).toBeInTheDocument();
     expect(screen.getByText('fluxo.xlsx')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Publicar' }));
     expect(onPublishVersion).toHaveBeenCalledWith('cash-version-1');

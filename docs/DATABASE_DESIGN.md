@@ -91,15 +91,54 @@ Versões antigas ficam como `archived` e podem ser republicadas.
 - `financial_records(version_id, group_key)`
 - `financial_records(version_id, group_key, department_key)`
 - índices antigos por `import_id`, `group_key`, `department_key`, `person_key` continuam úteis para filtros.
-# Fluxo de caixa versionado
+# Previsao financeira versionada
 
-`cash_flow_versions` armazena cada importacao de fluxo de caixa como uma versao
-independente do dashboard financeiro. O dataset analisado fica preservado em
-`jsonb`, junto com campos agregados usados no historico administrativo.
+`cash_flow_versions` permanece como nome tecnico da tabela por compatibilidade,
+mas agora representa o modulo de Previsao Financeira. Ela armazena cada
+importacao de previsao como uma versao independente do dashboard financeiro. O
+dataset analisado fica preservado em `jsonb`, junto com campos agregados usados
+no historico administrativo.
 
 - `draft`: versao criada pelo administrador e ainda invisivel no link publico.
 - `published`: unica versao visivel no link publico.
 - `archived`: versao anteriormente publicada e disponivel para republicacao.
 
 A funcao `publish_cash_flow_version(uuid)` arquiva a versao publicada atual e
+publica a escolhida na mesma transacao.
+
+# Fluxo de caixa operacional
+
+`cash_flow_reports` armazena o novo modulo de Fluxo de Caixa em formato de
+planilha. Ele e separado de `cash_flow_versions` para nao misturar a previsao
+financeira antiga com o fluxo operacional solicitado pelo cliente.
+
+Diagnostico da planilha `Relatorio fluxo de caixa.xlsx`:
+
+- Aba encontrada: `Planilha1`.
+- Colunas: `Nº Documento`, `Débito/Crédito`, `Razão Social`, `Baixado`,
+  `Previsão`, `Data Vencimento`, `Valor Total`.
+- Registros validos analisados: 1522.
+- Tipos: 1293 debitos e 229 creditos.
+- Periodo: 2026-07-01 a 2026-09-30.
+- Creditos com `Baixado = TRUE`: 6, classificados como `Antecipados`.
+- A planilha nao contem saldo inicial bancario; o fluxo inicia em R$ 0,00 e
+  mostra esse fato na UI.
+
+Campos principais:
+
+- `status`: `draft`, `published`, `archived`.
+- `movement_count`, `daily_row_count`, `anticipated_count`, `variation_count`.
+- `initial_balance_cents`, `closing_balance_cents`.
+- `dataset jsonb`: guarda movimentos, dias calculados, antecipados, variacoes
+  e alertas de importacao.
+
+Regras:
+
+- Somente o admin cria rascunhos e publica.
+- O publico le somente a versao publicada.
+- Creditos com `Baixado = TRUE` entram em `Antecipados` e nao somam no fluxo.
+- A comparacao de variacoes usa documento + razao social + tipo para evitar
+  falsos duplicados em documentos genericos como salarios.
+
+A funcao `publish_cash_flow_report(uuid)` arquiva a versao publicada atual e
 publica a escolhida na mesma transacao.

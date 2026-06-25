@@ -213,10 +213,21 @@ export default function PieChartPanel({ title, items, totalLabel, selectionHint 
                   formatter={(value: number) => [formatCurrency(value), 'Valor']}
                   labelFormatter={(label) => String(label)}
                   contentStyle={{
-                    background: '#111a2b',
-                    border: '1px solid rgba(142, 159, 185, 0.25)',
+                    background: '#ffffff',
+                    border: '1px solid rgba(15, 23, 42, 0.14)',
                     borderRadius: 10,
-                    color: '#f8fbff',
+                    color: '#0f172a',
+                    boxShadow: '0 14px 34px rgba(0, 0, 0, 0.22)',
+                    fontWeight: 800,
+                  }}
+                  itemStyle={{
+                    color: '#0f172a',
+                    fontWeight: 900,
+                  }}
+                  labelStyle={{
+                    color: '#334155',
+                    fontWeight: 900,
+                    marginBottom: 4,
                   }}
                 />
                 <Legend wrapperStyle={{ display: 'none' }} />

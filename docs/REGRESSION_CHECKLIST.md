@@ -13,4 +13,9 @@
 - [ ] Build TypeScript passa.
 - [ ] Testes unitários passam.
 - [ ] Não há secrets em código versionado.
-
+- [ ] A aba Previsao Financeira nao mostra mais Movimentacoes e Contas.
+- [ ] A aba Fluxo de Caixa aparece no menu lateral.
+- [ ] Importacao de `Relatorio fluxo de caixa.xlsx` identifica 1522 lancamentos.
+- [ ] Creditos baixados aparecem em Antecipados e nao entram no fluxo diario.
+- [ ] Fluxo diario mostra saldo inicial, debito, credito, liquido e saldo final.
+- [ ] Variacoes aparecem ao importar uma nova versao alterada.
