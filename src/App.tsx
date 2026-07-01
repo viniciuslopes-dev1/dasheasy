@@ -22,6 +22,7 @@ import {
   updateCashFlowReportVersionDataset,
 } from './services/cashFlowReportVersionService';
 import { isDashboardAdmin } from './services/adminAuthorizationService';
+import { clearLocalTestStore } from './services/localVersionStore';
 import { isLocalTestMode, LOCAL_TEST_USER_ID, LOCAL_TEST_USER_NAME } from './services/localTestMode';
 import type { CashFlowDataset, CashFlowVersion, CashFlowVersionDataset } from './types/cashFlow';
 import type {
@@ -61,7 +62,6 @@ const CashFlowReportDashboard = lazy(() => import('./components/cash-flow-report
 const CashFlowReportUpload = lazy(() => import('./components/cash-flow-report/CashFlowReportUpload'));
 const ExcelUpload = lazy(() => import('./components/ExcelUpload'));
 const CashFlowDashboard = lazy(() => import('./components/cash-flow/CashFlowDashboard'));
-const CashFlowUpload = lazy(() => import('./components/cash-flow/CashFlowUpload'));
 const ComparisonDashboard = lazy(() => import('./components/comparisons/ComparisonDashboard'));
 const FinancialDashboard = lazy(() => import('./components/dashboard/FinancialDashboard'));
 
@@ -136,8 +136,27 @@ function writeCachedPublishedCashFlowReport(dataset: CashFlowReportVersionDatase
   }
 }
 
+function clearLocalPublishedCaches() {
+  try {
+    window.localStorage.removeItem(PUBLIC_DASHBOARD_CACHE_KEY);
+    window.localStorage.removeItem(PUBLIC_CASH_FLOW_CACHE_KEY);
+    window.localStorage.removeItem(PUBLIC_CASH_FLOW_REPORT_CACHE_KEY);
+  } catch {
+    // Local maintenance should not block the app if browser storage is unavailable.
+  }
+}
+
 export default function App() {
   const isAdminRoute = window.location.pathname.startsWith('/admin');
+  const shouldResetLocalTestData =
+    isLocalTestMode && new URLSearchParams(window.location.search).has('resetLocalTest');
+
+  if (shouldResetLocalTestData) {
+    clearLocalTestStore();
+    clearLocalPublishedCaches();
+    window.history.replaceState(null, '', `${window.location.pathname}${window.location.hash}`);
+  }
+
   const [session, setSession] = useState<Session | null>(() =>
     isLocalTestMode && isAdminRoute ? LOCAL_TEST_SESSION : null,
   );
@@ -684,17 +703,13 @@ export default function App() {
               </button>
             </div>
             <Suspense fallback={<RouteLoading />}>
-              {activeView === 'cashFlow' ? (
+              {activeView === 'cashFlow' || activeView === 'forecast' ? (
                 <CashFlowReportUpload
                   onImported={handleCashFlowReportImported}
+                  onForecastImported={handleCashFlowImported}
                   userId={session?.user.id}
                   baselineDataset={adminCashFlowReport.dataset}
-                />
-              ) : activeView === 'forecast' ? (
-                <CashFlowUpload
-                  onImported={handleCashFlowImported}
-                  userId={session?.user.id}
-                  baselineDataset={adminCashFlow.dataset}
+                  baselineForecastDataset={adminCashFlow.dataset}
                 />
               ) : (
                 <ExcelUpload onImported={handleImported} userId={session?.user.id} />

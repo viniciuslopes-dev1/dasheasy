@@ -244,7 +244,7 @@ export function calculateCashFlowMetrics(dataset: CashFlowDataset): CashFlowMetr
     totalCreditsCents,
     initialForecastClosingCents: dataset.initialForecastClosingCents,
     currentForecastClosingCents: lastDay?.projectedBalanceCents ?? 0,
-    accumulatedVariationCents: (lastDay?.projectedBalanceCents ?? 0) - dataset.initialForecastClosingCents,
+    accumulatedVariationCents: dataset.changes.reduce((sum, change) => sum + change.impactCents, 0),
     minProjectedBalanceCents: minDay?.projectedBalanceCents ?? 0,
     minProjectedBalanceDate: minDay?.date ?? dataset.startDate,
   };

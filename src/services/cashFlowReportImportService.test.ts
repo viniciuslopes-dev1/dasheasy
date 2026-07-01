@@ -122,6 +122,42 @@ describe('cashFlowReportImportService', () => {
     expect(current.dataset.variations.map((variation) => variation.variationType)).not.toContain('REMOVIDO');
   });
 
+  it('keeps accumulated variations across daily cash flow imports', () => {
+    const first = analyzeCashFlowReportWorkbook(
+      buildWorkbook([
+        header,
+        ['D-1', 'Débito', 'Fornecedor A', 'FALSE', 'TRUE', '7/1/26', 'R$ 100.00'],
+        ['C-1', 'Crédito', 'Cliente A', 'FALSE', 'TRUE', '7/2/26', 'R$ 200.00'],
+      ]),
+      'fluxo-dia-1.xlsx',
+    ).dataset as CashFlowReportDataset;
+
+    const second = analyzeCashFlowReportWorkbook(
+      buildWorkbook([
+        header,
+        ['D-1', 'Débito', 'Fornecedor A', 'FALSE', 'TRUE', '7/1/26', 'R$ 150.00'],
+        ['C-1', 'Crédito', 'Cliente A', 'FALSE', 'TRUE', '7/2/26', 'R$ 200.00'],
+      ]),
+      'fluxo-dia-2.xlsx',
+      first,
+    ).dataset as CashFlowReportDataset;
+
+    const third = analyzeCashFlowReportWorkbook(
+      buildWorkbook([
+        header,
+        ['D-1', 'Débito', 'Fornecedor A', 'FALSE', 'TRUE', '7/1/26', 'R$ 150.00'],
+        ['C-1', 'Crédito', 'Cliente A', 'FALSE', 'TRUE', '7/2/26', 'R$ 250.00'],
+      ]),
+      'fluxo-dia-3.xlsx',
+      second,
+    ).dataset;
+
+    expect(third.variations.map((variation) => variation.documentNumber)).toEqual(
+      expect.arrayContaining(['D-1', 'C-1']),
+    );
+    expect(third.variations.reduce((sum, variation) => sum + variation.impactCents, 0)).toBe(0);
+  });
+
   it('imports bank balances from the detailed cash flow report header', () => {
     const result = analyzeCashFlowReportWorkbook(buildDetailedWorkbook(), 'relatorio-fluxo.xlsx');
 

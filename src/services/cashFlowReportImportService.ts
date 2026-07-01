@@ -104,7 +104,8 @@ export function analyzeCashFlowReportWorkbook(
   const anticipatedMovements = accumulatedMovements.filter((movement) => movement.isAnticipated);
   const cashFlowMovements = accumulatedMovements.filter((movement) => !movement.excludedFromCashFlow);
   const dailyRows = buildDailyRows(startDate, endDate, cashFlowMovements, anticipatedMovements, initialBalanceCents);
-  const variations = previousDataset ? buildVariations(previousDataset.movements, movements) : [];
+  const newVariations = previousDataset ? buildVariations(previousDataset.movements, movements) : [];
+  const variations = [...(previousDataset?.variations ?? []), ...newVariations];
   const duplicateDocumentCount = countDuplicateDocuments(movements);
 
   if (duplicateDocumentCount > 0) {

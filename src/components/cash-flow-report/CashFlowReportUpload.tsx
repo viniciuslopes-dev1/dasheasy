@@ -1,10 +1,13 @@
 import { ChangeEvent, useState } from 'react';
 import { AlertTriangle, CheckCircle2, FileSpreadsheet, UploadCloud } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { createForecastDatasetFromCashFlowReport } from '../../services/cashFlowForecastFromReportService';
 import { analyzeCashFlowReportExcelFile } from '../../services/cashFlowReportImportService';
 import { calculateCashFlowReportMetrics } from '../../services/cashFlowReportService';
 import { saveCashFlowReportDraft } from '../../services/cashFlowReportVersionService';
+import { saveCashFlowDraft } from '../../services/cashFlowVersionService';
 import { isLocalTestMode } from '../../services/localTestMode';
+import type { CashFlowDataset, CashFlowVersion } from '../../types/cashFlow';
 import type {
   CashFlowReportDataset,
   CashFlowReportImportSummary,
@@ -15,10 +18,18 @@ import { formatCurrency } from '../../utils/formatCurrency';
 interface CashFlowReportUploadProps {
   userId?: string;
   baselineDataset?: CashFlowReportDataset | null;
+  baselineForecastDataset?: CashFlowDataset | null;
   onImported: (dataset: CashFlowReportDataset, version?: CashFlowReportVersion | null) => void;
+  onForecastImported?: (dataset: CashFlowDataset, version?: CashFlowVersion | null) => void;
 }
 
-export default function CashFlowReportUpload({ userId, baselineDataset, onImported }: CashFlowReportUploadProps) {
+export default function CashFlowReportUpload({
+  userId,
+  baselineDataset,
+  baselineForecastDataset,
+  onImported,
+  onForecastImported,
+}: CashFlowReportUploadProps) {
   const [dataset, setDataset] = useState<CashFlowReportDataset | null>(null);
   const [summary, setSummary] = useState<CashFlowReportImportSummary | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -63,17 +74,20 @@ export default function CashFlowReportUpload({ userId, baselineDataset, onImport
         throw new Error('Faça login como administrador para salvar a versão.');
       }
 
+      const forecastDataset = createForecastDatasetFromCashFlowReport(dataset, baselineForecastDataset);
       const version = await saveCashFlowReportDraft(dataset, userId);
+      const forecastVersion = await saveCashFlowDraft(forecastDataset, userId);
       onImported(dataset, version);
+      onForecastImported?.(forecastDataset, forecastVersion);
       setSuccess(
         isLocalTestMode
-          ? 'Rascunho salvo somente neste navegador. Publique para atualizar a visualizacao local.'
+          ? 'Rascunhos de fluxo e previsão salvos somente neste navegador. Publique para atualizar a visualização local.'
           : supabase
-          ? 'Rascunho salvo. Publique o fluxo para atualizar o link principal.'
-          : 'Supabase não configurado: dados carregados apenas para analise.',
+          ? 'Rascunhos de fluxo e previsão salvos. Publique para atualizar o link principal.'
+          : 'Supabase não configurado: dados carregados apenas para análise.',
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível salvar o rascunho do fluxo de caixa.');
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar os rascunhos de fluxo e previsão.');
     } finally {
       setIsSaving(false);
     }
@@ -86,7 +100,7 @@ export default function CashFlowReportUpload({ userId, baselineDataset, onImport
       <div className="panel-heading">
         <div>
           <h2>Importar fluxo de caixa</h2>
-          <p>A planilha cria uma nova versão em rascunho. Antecipados ficam fora do cálculo diário.</p>
+          <p>A mesma planilha cria rascunhos de Fluxo de caixa e Previsão financeira.</p>
         </div>
         <FileSpreadsheet size={22} />
       </div>

@@ -30,33 +30,105 @@ type LocalStore = {
 };
 
 const STORE_KEY = 'dasheasy:local-test-store';
+const MAX_LOCAL_VERSIONS_PER_AREA = 5;
+const MIN_LOCAL_VERSIONS_PER_AREA = 1;
 
-const EMPTY_STORE: LocalStore = {
-  dashboard: [],
-  forecast: [],
-  cashFlow: [],
-};
+let memoryStore: LocalStore | null = null;
+
+function createEmptyStore(): LocalStore {
+  return {
+    dashboard: [],
+    forecast: [],
+    cashFlow: [],
+  };
+}
+
+function cloneStore(store: LocalStore): LocalStore {
+  return {
+    dashboard: [...store.dashboard],
+    forecast: [...store.forecast],
+    cashFlow: [...store.cashFlow],
+  };
+}
+
+function byEntryCreatedAtDesc<T extends { version: { createdAt: string } }>(entries: T[]) {
+  return [...entries].sort(
+    (a, b) => new Date(b.version.createdAt).getTime() - new Date(a.version.createdAt).getTime(),
+  );
+}
+
+function normalizeStore(store: Partial<LocalStore>): LocalStore {
+  return {
+    dashboard: store.dashboard ?? [],
+    forecast: (store.forecast ?? []).map((entry) => ({
+      ...entry,
+      version: {
+        ...entry.version,
+        dataset: null,
+      },
+      dataset: entry.dataset ?? entry.version.dataset,
+    })),
+    cashFlow: (store.cashFlow ?? []).map((entry) => ({
+      ...entry,
+      version: {
+        ...entry.version,
+        dataset: null,
+      },
+      dataset: entry.dataset ?? entry.version.dataset,
+    })),
+  };
+}
+
+function limitStore(store: LocalStore, maxVersionsPerArea = MAX_LOCAL_VERSIONS_PER_AREA): LocalStore {
+  return {
+    dashboard: byEntryCreatedAtDesc(store.dashboard).slice(0, maxVersionsPerArea),
+    forecast: byEntryCreatedAtDesc(store.forecast).slice(0, maxVersionsPerArea),
+    cashFlow: byEntryCreatedAtDesc(store.cashFlow).slice(0, maxVersionsPerArea),
+  };
+}
 
 function readStore(): LocalStore {
+  if (memoryStore) {
+    return cloneStore(memoryStore);
+  }
+
   try {
     const raw = window.localStorage.getItem(STORE_KEY);
     if (!raw) {
-      return EMPTY_STORE;
+      return createEmptyStore();
     }
 
     const parsed = JSON.parse(raw) as Partial<LocalStore>;
-    return {
-      dashboard: parsed.dashboard ?? [],
-      forecast: parsed.forecast ?? [],
-      cashFlow: parsed.cashFlow ?? [],
-    };
+    const normalized = normalizeStore(parsed);
+    memoryStore = normalized;
+    return cloneStore(normalized);
   } catch {
-    return EMPTY_STORE;
+    return createEmptyStore();
   }
 }
 
 function writeStore(store: LocalStore) {
-  window.localStorage.setItem(STORE_KEY, JSON.stringify(store));
+  const compactStore = limitStore(normalizeStore(store));
+  memoryStore = compactStore;
+
+  try {
+    window.localStorage.setItem(STORE_KEY, JSON.stringify(compactStore));
+    return;
+  } catch {
+    const minimumStore = limitStore(compactStore, MIN_LOCAL_VERSIONS_PER_AREA);
+    memoryStore = minimumStore;
+
+    try {
+      window.localStorage.setItem(STORE_KEY, JSON.stringify(minimumStore));
+      return;
+    } catch {
+      try {
+        window.localStorage.removeItem(STORE_KEY);
+      } catch {
+        // The local test mode can keep working from memory during this session.
+      }
+    }
+  }
 }
 
 function makeId(prefix: string) {
@@ -73,6 +145,7 @@ function sortByCreatedAtDesc<T extends { createdAt: string }>(versions: T[]) {
 
 export function clearLocalTestStore() {
   window.localStorage.removeItem(STORE_KEY);
+  memoryStore = null;
 }
 
 export function loadLocalPublishedDashboard(): DashboardDataset {
@@ -181,7 +254,7 @@ export function saveLocalCashFlowDraft(dataset: CashFlowDataset, userId?: string
     accountCount: dataset.bankAccounts.length,
     initialBalanceCents: metrics.initialBalanceCents,
     currentForecastCents: metrics.currentForecastClosingCents,
-    dataset,
+    dataset: null,
     metadata: {
       localTestMode: true,
       issueCount: dataset.issues?.length ?? 0,
@@ -263,7 +336,7 @@ export function saveLocalCashFlowReportDraft(
     variationCount: dataset.variations.length,
     initialBalanceCents: dataset.initialBalanceCents,
     closingBalanceCents: metrics.closingBalanceCents,
-    dataset,
+    dataset: null,
     metadata: {
       localTestMode: true,
       issueCount: dataset.issues.length,
@@ -303,7 +376,7 @@ export function updateLocalCashFlowReportVersionDataset(
     variationCount: dataset.variations.length,
     initialBalanceCents: dataset.initialBalanceCents,
     closingBalanceCents: metrics.closingBalanceCents,
-    dataset,
+    dataset: null,
     metadata: {
       ...entry.version.metadata,
       localTestMode: true,

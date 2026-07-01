@@ -1305,7 +1305,7 @@ button {
   justify-content: space-between;
   gap: 18px;
   padding: 16px 18px;
-  overflow: hidden;
+  overflow: visible;
   background:
     radial-gradient(circle at top right, rgba(42, 91, 190, 0.16), transparent 34%),
     linear-gradient(135deg, rgba(16, 28, 48, 0.86), rgba(7, 12, 22, 0.88) 64%);
@@ -1361,6 +1361,40 @@ button {
   text-align: right;
 }
 
+.final-balance-card {
+  min-width: 258px;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0, 255, 106, 0.42);
+  border-radius: 10px;
+  background:
+    radial-gradient(circle at top right, rgba(0, 255, 106, 0.2), transparent 42%),
+    linear-gradient(135deg, rgba(0, 120, 70, 0.22), rgba(6, 16, 24, 0.72));
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.24),
+    0 0 0 1px rgba(0, 255, 106, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.final-balance-card-negative {
+  border-color: rgba(255, 49, 49, 0.56);
+  background:
+    radial-gradient(circle at top right, rgba(255, 49, 49, 0.22), transparent 42%),
+    linear-gradient(135deg, rgba(145, 18, 18, 0.3), rgba(6, 16, 24, 0.74));
+  box-shadow:
+    0 18px 38px rgba(0, 0, 0, 0.24),
+    0 0 0 1px rgba(255, 49, 49, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.cash-flow-hero-side,
+.cash-report-header-side {
+  min-width: 250px;
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
 .cash-flow-hero-kpi::before,
 .cash-report-header-kpis::before {
   content: "";
@@ -1369,6 +1403,14 @@ button {
   margin-bottom: 4px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(84, 129, 255, 0), rgba(118, 160, 255, 0.92));
+}
+
+.final-balance-card::before {
+  background: linear-gradient(90deg, rgba(0, 255, 106, 0), rgba(0, 255, 106, 0.95));
+}
+
+.final-balance-card-negative::before {
+  background: linear-gradient(90deg, rgba(255, 49, 49, 0), rgba(255, 49, 49, 0.95));
 }
 
 .cash-flow-import-box {
@@ -1529,6 +1571,27 @@ button {
   color: #ffffff;
   font-size: 1.5rem;
   line-height: 1.05;
+}
+
+.final-balance-card span,
+.final-balance-card small {
+  color: #baffd5;
+}
+
+.final-balance-card strong {
+  color: #00ff6a !important;
+  font-size: 1.72rem;
+  text-shadow: 0 0 18px rgba(0, 255, 106, 0.28);
+}
+
+.final-balance-card-negative span,
+.final-balance-card-negative small {
+  color: #ffc9c9;
+}
+
+.final-balance-card-negative strong {
+  color: #ff3131 !important;
+  text-shadow: 0 0 18px rgba(255, 49, 49, 0.32);
 }
 
 .cash-flow-heading-actions {
@@ -1766,25 +1829,49 @@ button {
   font-style: normal;
 }
 
-.cash-flow-metric.positive {
-  border-color: rgba(142, 229, 189, 0.22);
+.cash-flow-metric.positive,
+.cash-flow-metric.credit {
+  border-color: rgba(0, 255, 106, 0.36);
 }
 
-.cash-flow-metric.negative {
-  border-color: rgba(255, 154, 141, 0.22);
+.cash-flow-metric.negative,
+.cash-flow-metric.debit,
+.cash-flow-metric.balance-negative {
+  border-color: rgba(255, 49, 49, 0.38);
+}
+
+.cash-flow-metric.balance-positive {
+  border-color: rgba(38, 145, 255, 0.38);
 }
 
 .cash-flow-metric.positive strong,
+.cash-flow-metric.credit strong,
 .cash-flow-impact.positive,
-.variation-balance-row.positive strong {
-  color: #8ee5bd;
+.variation-balance-row.positive strong,
+.credit-value,
+.credit-heading {
+  color: #00ff6a !important;
+  font-weight: 950;
 }
 
 .cash-flow-metric.negative strong,
+.cash-flow-metric.debit strong,
+.cash-flow-metric.balance-negative strong,
 .cash-flow-impact.negative,
 .variation-balance-row.negative strong,
-.negative-value {
-  color: #ff9a8d;
+.negative-value,
+.debit-value,
+.debit-heading,
+.balance-negative-value {
+  color: #ff3131 !important;
+  font-weight: 950;
+}
+
+.cash-flow-metric.balance-positive strong,
+.balance-positive-value,
+.balance-heading {
+  color: #2691ff !important;
+  font-weight: 950;
 }
 
 .cash-flow-chart-panel,
@@ -1980,13 +2067,15 @@ button {
 }
 
 .movement-type.debit {
-  background: rgba(154, 52, 18, 0.2);
-  color: #ffb299;
+  background: rgba(255, 49, 49, 0.18);
+  color: #ff3131;
+  box-shadow: inset 0 0 0 1px rgba(255, 49, 49, 0.35);
 }
 
 .movement-type.credit {
-  background: rgba(47, 111, 94, 0.28);
-  color: #9bf1cb;
+  background: rgba(0, 255, 106, 0.16);
+  color: #00ff6a;
+  box-shadow: inset 0 0 0 1px rgba(0, 255, 106, 0.3);
 }
 
 .variation-overview {
@@ -2145,7 +2234,7 @@ button {
   justify-content: space-between;
   gap: 18px;
   padding: 16px 18px;
-  overflow: hidden;
+  overflow: visible;
   background:
     radial-gradient(circle at top right, rgba(67, 191, 146, 0.13), transparent 34%),
     linear-gradient(135deg, rgba(16, 28, 48, 0.86), rgba(7, 12, 22, 0.88) 64%);
@@ -2282,6 +2371,30 @@ button {
   outline: none;
   border-color: rgba(84, 129, 255, 0.62);
   box-shadow: 0 0 0 3px rgba(84, 129, 255, 0.12);
+}
+
+.debit-value .bank-sheet-input,
+.debit-value input {
+  color: #ff3131;
+  font-weight: 950;
+}
+
+.credit-value .bank-sheet-input,
+.credit-value input {
+  color: #00ff6a;
+  font-weight: 950;
+}
+
+.balance-positive-value .bank-sheet-input,
+.balance-positive-value input {
+  color: #2691ff;
+  font-weight: 950;
+}
+
+.balance-negative-value .bank-sheet-input,
+.balance-negative-value input {
+  color: #ff3131;
+  font-weight: 950;
 }
 
 .bank-sheet-check {
@@ -2458,8 +2571,8 @@ button {
 }
 
 .positive-value {
-  color: #8ee5bd !important;
-  font-weight: 900;
+  color: #00ff6a !important;
+  font-weight: 950;
 }
 
 .cash-report-note {
@@ -2894,12 +3007,19 @@ button {
     flex-direction: column;
   }
 
+  .cash-flow-hero-side,
+  .cash-report-header-side,
   .cash-flow-hero-kpi,
   .cash-report-header-kpis,
   .cash-flow-search {
     width: 100%;
     min-width: 0;
     text-align: left;
+  }
+
+  .cash-flow-hero-side,
+  .cash-report-header-side {
+    justify-items: stretch;
   }
 
   .cash-flow-hero-kpi,
@@ -2944,6 +3064,7 @@ button {
   }
 
   .cash-report-header,
+  .cash-report-header-side,
   .cash-report-header-kpis {
     align-items: stretch;
     text-align: left;

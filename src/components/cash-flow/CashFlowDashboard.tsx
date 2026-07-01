@@ -31,7 +31,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 type CashFlowTab = 'dashboard' | 'movements' | 'variations' | 'accounts';
 type MovementTypeFilter = 'ALL' | CashFlowTransactionType;
-type DateRangePreset = 'FULL' | 'NEXT_15' | 'NEXT_30' | 'NEXT_60' | 'CUSTOM';
+type DateRangePreset = 'CURRENT_MONTH' | 'FULL' | 'NEXT_15' | 'NEXT_30' | 'NEXT_60' | 'CUSTOM';
 type DailyCashFlowRow = ReturnType<typeof calculateDailyCashFlow>[number];
 
 const CASH_FLOW_TABS: Array<{ value: CashFlowTab; label: string }> = [
@@ -40,6 +40,7 @@ const CASH_FLOW_TABS: Array<{ value: CashFlowTab; label: string }> = [
 ];
 
 const DATE_RANGE_PRESETS: Array<{ value: DateRangePreset; label: string; days?: number }> = [
+  { value: 'CURRENT_MONTH', label: 'Mês atual' },
   { value: 'FULL', label: 'Tudo' },
   { value: 'NEXT_15', label: '15 dias', days: 15 },
   { value: 'NEXT_30', label: '30 dias', days: 30 },
@@ -98,7 +99,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
   const [movementTypeFilter, setMovementTypeFilter] = useState<MovementTypeFilter>('ALL');
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>(() => sourceDataset?.bankAccounts ?? []);
-  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('FULL');
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('CURRENT_MONTH');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
@@ -109,7 +110,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
     setSearch('');
     setMovementTypeFilter('ALL');
     setActiveTab('dashboard');
-    setDateRangePreset('FULL');
+    setDateRangePreset('CURRENT_MONTH');
     setCustomStartDate('');
     setCustomEndDate('');
     setIsDateRangeOpen(false);
@@ -229,6 +230,36 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
     );
   }
 
+  const periodControl =
+    dataset && periodMetrics ? (
+      <DateRangeControl
+        isOpen={isDateRangeOpen}
+        preset={dateRangePreset}
+        startDate={effectiveDateRange.startDate}
+        endDate={effectiveDateRange.endDate}
+        availableStartDate={availableStartDate}
+        availableEndDate={availableEndDate}
+        customStartDate={customStartDate}
+        customEndDate={customEndDate}
+        onToggle={() => setIsDateRangeOpen((current) => !current)}
+        onClose={() => setIsDateRangeOpen(false)}
+        onPresetChange={(nextPreset) => {
+          setDateRangePreset(nextPreset);
+          if (nextPreset !== 'CUSTOM') {
+            setIsDateRangeOpen(false);
+          }
+        }}
+        onCustomStartDateChange={(value) => {
+          setDateRangePreset('CUSTOM');
+          setCustomStartDate(value);
+        }}
+        onCustomEndDateChange={(value) => {
+          setDateRangePreset('CUSTOM');
+          setCustomEndDate(value);
+        }}
+      />
+    ) : null;
+
   return (
     <section className="dashboard-area cash-flow-area" aria-label="Previsão financeira">
       <div className="cash-flow-shell">
@@ -241,10 +272,17 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
             </p>
           </div>
           {dataset && periodMetrics ? (
-            <div className="cash-flow-hero-kpi">
+            <div className="cash-flow-hero-side">
+              {periodControl}
+              <div
+                className={`cash-flow-hero-kpi final-balance-card ${getBalanceTone(
+                  periodMetrics.currentForecastClosingCents,
+                )} ${getFinalBalanceCardToneClass(periodMetrics.currentForecastClosingCents)}`}
+              >
               <span>Previsão atual</span>
               <strong>{formatCurrency(periodMetrics.currentForecastClosingCents)}</strong>
               <small>{formatPeriodLabel(effectiveDateRange.startDate, effectiveDateRange.endDate)} no período</small>
+              </div>
             </div>
           ) : null}
         </section>
@@ -275,16 +313,16 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
         {activeTab === 'dashboard' ? (
           <div className="cash-flow-dashboard-grid">
             <div className="cash-flow-metrics">
-              <MetricCard label="Saldo inicio período" value={periodMetrics.initialBalanceCents} icon={<Banknote size={18} />} />
-              <MetricCard label="Total a pagar" value={periodMetrics.totalDebitsCents} tone="negative" icon={<TrendingDown size={18} />} />
-              <MetricCard label="Total a receber" value={periodMetrics.totalCreditsCents} tone="positive" icon={<TrendingUp size={18} />} />
-              <MetricCard label="Previsão inicial" value={periodMetrics.initialForecastClosingCents} />
-              <MetricCard label="Previsão atual" value={periodMetrics.currentForecastClosingCents} />
+              <MetricCard label="Saldo inicio período" value={periodMetrics.initialBalanceCents} tone={getBalanceTone(periodMetrics.initialBalanceCents)} icon={<Banknote size={18} />} />
+              <MetricCard label="Total a pagar" value={periodMetrics.totalDebitsCents} tone="debit" icon={<TrendingDown size={18} />} />
+              <MetricCard label="Total a receber" value={periodMetrics.totalCreditsCents} tone="credit" icon={<TrendingUp size={18} />} />
+              <MetricCard label="Previsão inicial" value={periodMetrics.initialForecastClosingCents} tone={getBalanceTone(periodMetrics.initialForecastClosingCents)} />
+              <MetricCard label="Previsão atual" value={periodMetrics.currentForecastClosingCents} tone={getBalanceTone(periodMetrics.currentForecastClosingCents)} />
               <MetricCard label="Variação acumulada" value={periodMetrics.accumulatedVariationCents} tone={periodMetrics.accumulatedVariationCents < 0 ? 'negative' : 'positive'} />
               <MetricCard
                 label={`Menor saldo (${formatCashFlowDate(periodMetrics.minProjectedBalanceDate)})`}
                 value={periodMetrics.minProjectedBalanceCents}
-                tone="negative"
+                tone={getBalanceTone(periodMetrics.minProjectedBalanceCents)}
                 icon={<AlertTriangle size={18} />}
               />
             </div>
@@ -300,32 +338,6 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
                   </p>
                 </div>
                 <div className="cash-flow-heading-actions">
-                  <DateRangeControl
-                    isOpen={isDateRangeOpen}
-                    preset={dateRangePreset}
-                    startDate={effectiveDateRange.startDate}
-                    endDate={effectiveDateRange.endDate}
-                    availableStartDate={availableStartDate}
-                    availableEndDate={availableEndDate}
-                    customStartDate={customStartDate}
-                    customEndDate={customEndDate}
-                    onToggle={() => setIsDateRangeOpen((current) => !current)}
-                    onClose={() => setIsDateRangeOpen(false)}
-                    onPresetChange={(nextPreset) => {
-                      setDateRangePreset(nextPreset);
-                      if (nextPreset !== 'CUSTOM') {
-                        setIsDateRangeOpen(false);
-                      }
-                    }}
-                    onCustomStartDateChange={(value) => {
-                      setDateRangePreset('CUSTOM');
-                      setCustomStartDate(value);
-                    }}
-                    onCustomEndDateChange={(value) => {
-                      setDateRangePreset('CUSTOM');
-                      setCustomEndDate(value);
-                    }}
-                  />
                   <span className="cash-flow-chip">{negativeDays.length} dias negativos</span>
                 </div>
               </div>
@@ -641,7 +653,7 @@ function MetricCard({
 }: {
   label: string;
   value: number;
-  tone?: 'neutral' | 'positive' | 'negative';
+  tone?: FinancialTone;
   icon?: React.ReactNode;
 }) {
   return (
@@ -653,6 +665,16 @@ function MetricCard({
       {icon ? <i>{icon}</i> : null}
     </article>
   );
+}
+
+type FinancialTone = 'neutral' | 'positive' | 'negative' | 'debit' | 'credit' | 'balance-positive' | 'balance-negative';
+
+function getBalanceTone(valueCents: number): FinancialTone {
+  return valueCents < 0 ? 'balance-negative' : 'balance-positive';
+}
+
+function getFinalBalanceCardToneClass(valueCents: number): 'final-balance-card-positive' | 'final-balance-card-negative' {
+  return valueCents < 0 ? 'final-balance-card-negative' : 'final-balance-card-positive';
 }
 
 function resolveDateRange(
@@ -672,6 +694,10 @@ function resolveDateRange(
     return { startDate, endDate };
   }
 
+  if (preset === 'CURRENT_MONTH') {
+    return resolveCurrentMonthRange(availableStartDate, availableEndDate);
+  }
+
   const selectedPreset = DATE_RANGE_PRESETS.find((option) => option.value === preset);
   if (!selectedPreset?.days) {
     return { startDate: availableStartDate, endDate: availableEndDate };
@@ -682,6 +708,31 @@ function resolveDateRange(
   return {
     startDate: anchorDate,
     endDate: minDate(addDays(anchorDate, selectedPreset.days - 1), availableEndDate),
+  };
+}
+
+function resolveCurrentMonthRange(availableStartDate: string, availableEndDate: string) {
+  const monthRange = getCurrentMonthRange();
+
+  if (monthRange.endDate < availableStartDate) {
+    const nextAvailableMonth = getMonthRangeForDate(availableStartDate);
+    return {
+      startDate: availableStartDate,
+      endDate: minDate(nextAvailableMonth.endDate, availableEndDate),
+    };
+  }
+
+  if (monthRange.startDate > availableEndDate) {
+    const lastAvailableMonth = getMonthRangeForDate(availableEndDate);
+    return {
+      startDate: maxDate(lastAvailableMonth.startDate, availableStartDate),
+      endDate: availableEndDate,
+    };
+  }
+
+  return {
+    startDate: maxDate(monthRange.startDate, availableStartDate),
+    endDate: minDate(monthRange.endDate, availableEndDate),
   };
 }
 
@@ -754,10 +805,40 @@ function minDate(a: string, b: string) {
   return a < b ? a : b;
 }
 
+function maxDate(a: string, b: string) {
+  return a > b ? a : b;
+}
+
 function addDays(date: string, days: number) {
   const parsed = new Date(`${date}T00:00:00.000Z`);
   parsed.setUTCDate(parsed.getUTCDate() + days);
   return parsed.toISOString().slice(0, 10);
+}
+
+function getCurrentMonthRange() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+
+  return {
+    startDate: formatLocalDate(year, month + 1, 1),
+    endDate: formatLocalDate(year, month + 1, lastDay),
+  };
+}
+
+function getMonthRangeForDate(date: string) {
+  const [year, month] = date.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+
+  return {
+    startDate: formatLocalDate(year, month, 1),
+    endDate: formatLocalDate(year, month, lastDay),
+  };
+}
+
+function formatLocalDate(year: number, month: number, day: number) {
+  return [year, String(month).padStart(2, '0'), String(day).padStart(2, '0')].join('-');
 }
 
 function MovementTable({ movements }: { movements: CashFlowMovement[] }) {

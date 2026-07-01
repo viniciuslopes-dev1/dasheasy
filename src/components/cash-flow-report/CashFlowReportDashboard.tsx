@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, FileSpreadsheet, Search, TrendingDown, TrendingUp } from 'lucide-react';
+import { AlertTriangle, CalendarDays, FileSpreadsheet, Search, TrendingDown, TrendingUp } from 'lucide-react';
 import type {
   CashFlowReportBankAccount,
   CashFlowReportDataset,
@@ -15,6 +15,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 
 type CashFlowReportTab = 'daily' | 'banks' | 'movements' | 'anticipated' | 'variations';
 type MovementFilter = 'ALL' | 'DEBITO' | 'CREDITO';
+type DateRangePreset = 'CURRENT_MONTH' | 'FULL' | 'NEXT_15' | 'NEXT_30' | 'NEXT_60' | 'CUSTOM';
 
 const TABS: Array<{ value: CashFlowReportTab; label: string }> = [
   { value: 'daily', label: 'Fluxo diário' },
@@ -22,6 +23,14 @@ const TABS: Array<{ value: CashFlowReportTab; label: string }> = [
   { value: 'anticipated', label: 'Antecipados' },
   { value: 'banks', label: 'Bancos' },
   { value: 'variations', label: 'Variações' },
+];
+
+const DATE_RANGE_PRESETS: Array<{ value: DateRangePreset; label: string; days?: number }> = [
+  { value: 'CURRENT_MONTH', label: 'Mês atual' },
+  { value: 'FULL', label: 'Tudo' },
+  { value: 'NEXT_15', label: '15 dias', days: 15 },
+  { value: 'NEXT_30', label: '30 dias', days: 30 },
+  { value: 'NEXT_60', label: '60 dias', days: 60 },
 ];
 
 interface CashFlowReportDashboardProps {
@@ -63,10 +72,18 @@ export default function CashFlowReportDashboard({
   const [bankAccounts, setBankAccounts] = useState<CashFlowReportBankAccount[]>(() => dataset?.bankAccounts ?? []);
   const [manualBankDraft, setManualBankDraft] = useState<ManualBankDraft>(EMPTY_BANK_DRAFT);
   const [bankSaveStatus, setBankSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>('CURRENT_MONTH');
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [isDateRangeOpen, setIsDateRangeOpen] = useState(false);
 
   useEffect(() => {
     setBankAccounts(dataset?.bankAccounts ?? []);
     setBankSaveStatus('idle');
+    setDateRangePreset('CURRENT_MONTH');
+    setCustomStartDate('');
+    setCustomEndDate('');
+    setIsDateRangeOpen(false);
   }, [dataset]);
 
   useEffect(() => {
@@ -79,10 +96,20 @@ export default function CashFlowReportDashboard({
     () => (dataset ? applyBankSelectionToDataset(dataset, bankAccounts) : null),
     [bankAccounts, dataset],
   );
-  const metrics = useMemo(() => (effectiveDataset ? calculateCashFlowReportMetrics(effectiveDataset) : null), [effectiveDataset]);
+  const availableStartDate = effectiveDataset?.dailyRows[0]?.date ?? effectiveDataset?.startDate ?? '';
+  const availableEndDate = effectiveDataset?.dailyRows[effectiveDataset.dailyRows.length - 1]?.date ?? effectiveDataset?.endDate ?? '';
+  const effectiveDateRange = useMemo(
+    () => resolveDateRange(dateRangePreset, availableStartDate, availableEndDate, customStartDate, customEndDate),
+    [availableEndDate, availableStartDate, customEndDate, customStartDate, dateRangePreset],
+  );
+  const periodDataset = useMemo(
+    () => (effectiveDataset ? filterDatasetByDateRange(effectiveDataset, effectiveDateRange.startDate, effectiveDateRange.endDate) : null),
+    [effectiveDataset, effectiveDateRange.endDate, effectiveDateRange.startDate],
+  );
+  const metrics = useMemo(() => (periodDataset ? calculateCashFlowReportMetrics(periodDataset) : null), [periodDataset]);
   const variationImpactCents = useMemo(
-    () => effectiveDataset?.variations.reduce((sum, variation) => sum + variation.impactCents, 0) ?? 0,
-    [effectiveDataset],
+    () => periodDataset?.variations.reduce((sum, variation) => sum + variation.impactCents, 0) ?? 0,
+    [periodDataset],
   );
   const bankSummary = useMemo(() => {
     return {
@@ -100,7 +127,7 @@ export default function CashFlowReportDashboard({
   );
   const variationDates = useMemo(() => {
     const dates = new Set<string>();
-    effectiveDataset?.variations.forEach((variation) => {
+    periodDataset?.variations.forEach((variation) => {
       if (variation.dueDate) {
         dates.add(variation.dueDate);
       }
@@ -109,10 +136,10 @@ export default function CashFlowReportDashboard({
       }
     });
     return dates;
-  }, [effectiveDataset]);
+  }, [periodDataset]);
   const filteredMovements = useMemo(
     () =>
-      (effectiveDataset?.cashFlowMovements ?? []).filter((movement) => {
+      (periodDataset?.cashFlowMovements ?? []).filter((movement) => {
         const normalizedSearch = search.trim().toLowerCase();
         const matchesSearch =
           !normalizedSearch ||
@@ -120,7 +147,7 @@ export default function CashFlowReportDashboard({
         const matchesType = movementFilter === 'ALL' || movement.transactionType === movementFilter;
         return matchesSearch && matchesType;
       }),
-    [effectiveDataset, movementFilter, search],
+    [periodDataset, movementFilter, search],
   );
 
   function updateBankAccount(accountId: string, patch: Partial<CashFlowReportBankAccount>) {
@@ -205,7 +232,7 @@ export default function CashFlowReportDashboard({
     }
   }
 
-  if (!effectiveDataset || !metrics) {
+  if (!periodDataset || !effectiveDataset || !metrics) {
     return (
       <section className="dashboard-area cash-report-area" aria-label="Fluxo de caixa">
         <div className="cash-report-shell">
@@ -223,6 +250,34 @@ export default function CashFlowReportDashboard({
 
   const reportBankAccounts = bankAccounts;
   const visibleTabs = reportBankAccounts.length > 0 || isEditable ? TABS : TABS.filter((tab) => tab.value !== 'banks');
+  const periodControl = (
+    <DateRangeControl
+      isOpen={isDateRangeOpen}
+      preset={dateRangePreset}
+      startDate={effectiveDateRange.startDate}
+      endDate={effectiveDateRange.endDate}
+      availableStartDate={availableStartDate}
+      availableEndDate={availableEndDate}
+      customStartDate={customStartDate}
+      customEndDate={customEndDate}
+      onToggle={() => setIsDateRangeOpen((current) => !current)}
+      onClose={() => setIsDateRangeOpen(false)}
+      onPresetChange={(nextPreset) => {
+        setDateRangePreset(nextPreset);
+        if (nextPreset !== 'CUSTOM') {
+          setIsDateRangeOpen(false);
+        }
+      }}
+      onCustomStartDateChange={(value) => {
+        setDateRangePreset('CUSTOM');
+        setCustomStartDate(value);
+      }}
+      onCustomEndDateChange={(value) => {
+        setDateRangePreset('CUSTOM');
+        setCustomEndDate(value);
+      }}
+    />
+  );
 
   return (
     <section className="dashboard-area cash-report-area" aria-label="Fluxo de caixa">
@@ -230,30 +285,37 @@ export default function CashFlowReportDashboard({
         <section className="panel cash-report-header">
           <div>
             <span className="section-label">Fluxo de caixa</span>
-            <h2>{effectiveDataset.monthLabel}</h2>
+            <h2>{periodDataset.monthLabel}</h2>
             <p>
               Créditos baixados entram em Antecipados e ficam fora do cálculo do fluxo. Saldo inicial não informado na
               planilha: cálculo iniciado em R$ 0,00.
             </p>
           </div>
-          <div className="cash-report-header-kpis">
-            <span>Saldo final projetado</span>
-            <strong>{formatCurrency(metrics.closingBalanceCents)}</strong>
-            <small>{effectiveDataset.monthLabel}</small>
+          <div className="cash-report-header-side">
+            {periodControl}
+            <div
+              className={`cash-report-header-kpis final-balance-card ${getBalanceTone(
+                metrics.closingBalanceCents,
+              )} ${getFinalBalanceCardToneClass(metrics.closingBalanceCents)}`}
+            >
+              <span>Saldo final projetado</span>
+              <strong>{formatCurrency(metrics.closingBalanceCents)}</strong>
+              <small>{formatPeriodLabel(effectiveDateRange.startDate, effectiveDateRange.endDate)}</small>
+            </div>
           </div>
         </section>
 
         <div className="cash-report-metrics">
-          <Metric label="Saldo inicial" value={metrics.initialBalanceCents} />
-          <Metric label="Débitos" value={metrics.totalDebitsCents} tone="negative" icon={<TrendingDown size={17} />} />
-          <Metric label="Créditos" value={metrics.totalCreditsCents} tone="positive" icon={<TrendingUp size={17} />} />
+          <Metric label="Saldo inicial" value={metrics.initialBalanceCents} tone={getBalanceTone(metrics.initialBalanceCents)} />
+          <Metric label="Débitos" value={metrics.totalDebitsCents} tone="debit" icon={<TrendingDown size={17} />} />
+          <Metric label="Créditos" value={metrics.totalCreditsCents} tone="credit" icon={<TrendingUp size={17} />} />
           <Metric label="Antecipados" value={metrics.anticipatedCreditsCents} />
           <Metric
             label="Variação acumulada"
             value={variationImpactCents}
             tone={variationImpactCents < 0 ? 'negative' : 'positive'}
           />
-          <Metric label="Menor saldo" value={metrics.minBalanceCents} tone="negative" note={formatCashFlowReportDate(metrics.minBalanceDate)} />
+          <Metric label="Menor saldo" value={metrics.minBalanceCents} tone={getBalanceTone(metrics.minBalanceCents)} note={formatCashFlowReportDate(metrics.minBalanceDate)} />
           <Metric label="Variações" value={metrics.variationCount} numeric />
         </div>
 
@@ -272,6 +334,7 @@ export default function CashFlowReportDashboard({
                 </button>
               </div>
             </div>
+            {reportBankAccounts.length > 0 ? <CompactBankAccountTable accounts={reportBankAccounts} /> : null}
           </section>
         ) : null}
 
@@ -295,36 +358,38 @@ export default function CashFlowReportDashboard({
                 <h3>Planilha diária do fluxo</h3>
                 <p>O saldo final de um dia vira o saldo inicial do próximo.</p>
               </div>
-              <span className="cash-flow-chip">{effectiveDataset.dailyRows.length} dias</span>
+              <div className="cash-flow-heading-actions">
+                <span className="cash-flow-chip">{periodDataset.dailyRows.length} dias</span>
+              </div>
             </div>
             <div className="cash-report-table-wrap">
               <table className="cash-report-table cash-flow-statement-table">
                 <thead>
                   <tr>
                     <th>Data</th>
-                    <th>Débito</th>
-                    <th>Crédito</th>
-                    <th>Saldo</th>
+                    <th className="debit-heading">Débito</th>
+                    <th className="credit-heading">Crédito</th>
+                    <th className="balance-heading">Saldo</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="cash-flow-balance-row">
                     <td colSpan={3}>Saldo inicial</td>
-                    <td className={metrics.initialBalanceCents < 0 ? 'negative-value' : 'positive-value'}>
+                    <td className={getBalanceValueClass(metrics.initialBalanceCents)}>
                       {formatCurrency(metrics.initialBalanceCents)}
                     </td>
                   </tr>
-                  {effectiveDataset.dailyRows.map((day) => (
+                  {periodDataset.dailyRows.map((day) => (
                     <tr key={day.date} className={variationDates.has(day.date) ? 'changed-row' : undefined}>
                       <td>{formatCashFlowReportDate(day.date)}</td>
-                      <td className="negative-value">{formatCurrency(day.debitCents)}</td>
-                      <td className="positive-value">{formatCurrency(day.creditCents)}</td>
-                      <td className={day.closingBalanceCents < 0 ? 'negative-value' : 'positive-value'}>{formatCurrency(day.closingBalanceCents)}</td>
+                      <td className="debit-value">{formatCurrency(day.debitCents)}</td>
+                      <td className="credit-value">{formatCurrency(day.creditCents)}</td>
+                      <td className={getBalanceValueClass(day.closingBalanceCents)}>{formatCurrency(day.closingBalanceCents)}</td>
                     </tr>
                   ))}
                   <tr className="cash-flow-balance-row">
                     <td colSpan={3}>Saldo final</td>
-                    <td className={metrics.closingBalanceCents < 0 ? 'negative-value' : 'positive-value'}>
+                    <td className={getBalanceValueClass(metrics.closingBalanceCents)}>
                       {formatCurrency(metrics.closingBalanceCents)}
                     </td>
                   </tr>
@@ -397,9 +462,9 @@ export default function CashFlowReportDashboard({
                 <h3>Antecipados</h3>
                 <p>Créditos com Baixado = TRUE. Eles são exibidos, mas não entram no fluxo de caixa.</p>
               </div>
-              <span className="cash-flow-chip">{effectiveDataset.anticipatedMovements.length} títulos</span>
+              <span className="cash-flow-chip">{periodDataset.anticipatedMovements.length} títulos</span>
             </div>
-            <MovementTable movements={effectiveDataset.anticipatedMovements} />
+            <MovementTable movements={periodDataset.anticipatedMovements} />
           </section>
         ) : null}
 
@@ -410,16 +475,16 @@ export default function CashFlowReportDashboard({
                 <h3>Variações</h3>
                 <p>Novos títulos, valores alterados e datas alteradas contra a base acumulada anterior.</p>
               </div>
-              <span className="cash-flow-chip">{effectiveDataset.variations.length} variações</span>
+              <span className="cash-flow-chip">{periodDataset.variations.length} variações</span>
             </div>
-            <VariationTable variations={effectiveDataset.variations} />
+            <VariationTable variations={periodDataset.variations} />
           </section>
         ) : null}
 
-        {effectiveDataset.issues.length ? (
+        {periodDataset.issues.length ? (
           <section className="cash-report-note">
             <AlertTriangle size={16} />
-            <span>{effectiveDataset.issues[0].message}</span>
+            <span>{periodDataset.issues[0].message}</span>
           </section>
         ) : null}
       </div>
@@ -515,6 +580,163 @@ function enumerateDates(startDate: string, endDate: string): string[] {
   return dates;
 }
 
+function filterDatasetByDateRange(
+  dataset: CashFlowReportDataset,
+  startDate: string,
+  endDate: string,
+): CashFlowReportDataset {
+  const dailyRows = dataset.dailyRows.filter((day) => day.date >= startDate && day.date <= endDate);
+  const visibleStartDate = dailyRows[0]?.date ?? startDate;
+  const visibleEndDate = dailyRows[dailyRows.length - 1]?.date ?? endDate;
+
+  return {
+    ...dataset,
+    monthLabel: formatPeriodLabel(visibleStartDate, visibleEndDate),
+    startDate: visibleStartDate,
+    endDate: visibleEndDate,
+    initialBalanceCents: dailyRows[0]?.openingBalanceCents ?? dataset.initialBalanceCents,
+    cashFlowMovements: dataset.cashFlowMovements.filter(
+      (movement) => movement.dueDate >= visibleStartDate && movement.dueDate <= visibleEndDate,
+    ),
+    anticipatedMovements: dataset.anticipatedMovements.filter(
+      (movement) => movement.dueDate >= visibleStartDate && movement.dueDate <= visibleEndDate,
+    ),
+    dailyRows,
+    variations: dataset.variations.filter(
+      (variation) =>
+        (variation.dueDate !== null && variation.dueDate >= visibleStartDate && variation.dueDate <= visibleEndDate) ||
+        (variation.previousDueDate !== undefined &&
+          variation.previousDueDate !== null &&
+          variation.previousDueDate >= visibleStartDate &&
+          variation.previousDueDate <= visibleEndDate),
+    ),
+  };
+}
+
+function resolveDateRange(
+  preset: DateRangePreset,
+  availableStartDate: string,
+  availableEndDate: string,
+  customStartDate: string,
+  customEndDate: string,
+) {
+  if (!availableStartDate || !availableEndDate) {
+    return { startDate: '', endDate: '' };
+  }
+
+  if (preset === 'CUSTOM') {
+    const startDate = clampDate(customStartDate || availableStartDate, availableStartDate, availableEndDate);
+    const endDate = clampDate(customEndDate || availableEndDate, startDate, availableEndDate);
+    return { startDate, endDate };
+  }
+
+  if (preset === 'CURRENT_MONTH') {
+    return resolveCurrentMonthRange(availableStartDate, availableEndDate);
+  }
+
+  const selectedPreset = DATE_RANGE_PRESETS.find((option) => option.value === preset);
+  if (!selectedPreset?.days) {
+    return { startDate: availableStartDate, endDate: availableEndDate };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const anchorDate = today >= availableStartDate && today <= availableEndDate ? today : availableStartDate;
+
+  return {
+    startDate: anchorDate,
+    endDate: minDate(addDays(anchorDate, selectedPreset.days - 1), availableEndDate),
+  };
+}
+
+function resolveCurrentMonthRange(availableStartDate: string, availableEndDate: string) {
+  const monthRange = getCurrentMonthRange();
+
+  if (monthRange.endDate < availableStartDate) {
+    const nextAvailableMonth = getMonthRangeForDate(availableStartDate);
+    return {
+      startDate: availableStartDate,
+      endDate: minDate(nextAvailableMonth.endDate, availableEndDate),
+    };
+  }
+
+  if (monthRange.startDate > availableEndDate) {
+    const lastAvailableMonth = getMonthRangeForDate(availableEndDate);
+    return {
+      startDate: maxDate(lastAvailableMonth.startDate, availableStartDate),
+      endDate: availableEndDate,
+    };
+  }
+
+  return {
+    startDate: maxDate(monthRange.startDate, availableStartDate),
+    endDate: minDate(monthRange.endDate, availableEndDate),
+  };
+}
+
+function formatPeriodLabel(startDate: string, endDate: string) {
+  if (!startDate || !endDate) {
+    return 'Período sem datas';
+  }
+
+  if (startDate === endDate) {
+    return formatCashFlowReportDate(startDate);
+  }
+
+  return `${formatCashFlowReportDate(startDate)} a ${formatCashFlowReportDate(endDate)}`;
+}
+
+function clampDate(date: string, min: string, max: string) {
+  if (date < min) {
+    return min;
+  }
+
+  if (date > max) {
+    return max;
+  }
+
+  return date;
+}
+
+function minDate(a: string, b: string) {
+  return a < b ? a : b;
+}
+
+function maxDate(a: string, b: string) {
+  return a > b ? a : b;
+}
+
+function addDays(date: string, days: number) {
+  const parsed = new Date(`${date}T00:00:00.000Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
+function getCurrentMonthRange() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const lastDay = new Date(year, month + 1, 0).getDate();
+
+  return {
+    startDate: formatLocalDate(year, month + 1, 1),
+    endDate: formatLocalDate(year, month + 1, lastDay),
+  };
+}
+
+function getMonthRangeForDate(date: string) {
+  const [year, month] = date.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+
+  return {
+    startDate: formatLocalDate(year, month, 1),
+    endDate: formatLocalDate(year, month, lastDay),
+  };
+}
+
+function formatLocalDate(year: number, month: number, day: number) {
+  return [year, String(month).padStart(2, '0'), String(day).padStart(2, '0')].join('-');
+}
+
 function parseBankName(accountLabel: string): string {
   return accountLabel.split('-')[0]?.trim() || accountLabel.trim() || 'Banco';
 }
@@ -563,6 +785,59 @@ function formatOptionalCurrency(cents: number): string {
   return cents === 0 ? '-' : formatCurrency(cents);
 }
 
+function CompactBankAccountTable({ accounts }: { accounts: CashFlowReportBankAccount[] }) {
+  return (
+    <div className="cash-report-bank-wrap compact">
+      <table className="cash-report-table bank compact" aria-label="Bancos do fluxo de caixa">
+        <thead>
+          <tr>
+            <th>Código</th>
+            <th>Banco</th>
+            <th className="debit-heading">Débito</th>
+            <th className="credit-heading">Crédito</th>
+            <th className="balance-heading">Saldo</th>
+            <th>Garantida</th>
+          </tr>
+        </thead>
+        <tbody>
+          {accounts.map((account) => (
+            <tr key={account.id} className={account.isGuaranteed ? 'guaranteed-row' : undefined}>
+              <td>{account.code}</td>
+              <td>
+                <strong>{account.bankName}</strong>
+                <small>{account.accountLabel}</small>
+              </td>
+              <td className="debit-value">{formatOptionalCurrency(getBankDebitCents(account))}</td>
+              <td className="credit-value">{formatOptionalCurrency(getBankCreditCents(account))}</td>
+              <td className={getBalanceValueClass(getBankStatementBalanceCents(account))}>
+                {formatCurrency(getBankStatementBalanceCents(account))}
+              </td>
+              <td>
+                <span className={account.isGuaranteed ? 'bank-status guaranteed' : 'bank-status available'}>
+                  {account.isGuaranteed ? 'Sim' : 'Não'}
+                </span>
+              </td>
+            </tr>
+          ))}
+          <tr className="cash-flow-balance-row">
+            <td colSpan={4}>Saldo inicial</td>
+            <td
+              className={
+                accounts.filter((account) => account.includeInCashFlow).reduce((sum, account) => sum + account.balanceCents, 0) < 0
+                  ? 'balance-negative-value'
+                  : 'balance-positive-value'
+              }
+            >
+              {formatCurrency(accounts.filter((account) => account.includeInCashFlow).reduce((sum, account) => sum + account.balanceCents, 0))}
+            </td>
+            <td>-</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function BankAccountTable({
   accounts,
   draft,
@@ -587,9 +862,9 @@ function BankAccountTable({
           <tr>
             <th>Código</th>
             <th>Banco</th>
-            <th>Débito</th>
-            <th>Crédito</th>
-            <th>Saldo</th>
+            <th className="debit-heading">Débito</th>
+            <th className="credit-heading">Crédito</th>
+            <th className="balance-heading">Saldo</th>
             <th>Garantida</th>
             <th>Entra no fluxo</th>
             {isEditable ? <th>Ação</th> : null}
@@ -628,7 +903,7 @@ function BankAccountTable({
                   </>
                 )}
               </td>
-              <td className="negative-value">
+              <td className="debit-value">
                 {isEditable ? (
                   <input
                     className="bank-sheet-input money"
@@ -646,7 +921,7 @@ function BankAccountTable({
                   formatOptionalCurrency(getBankDebitCents(account))
                 )}
               </td>
-              <td className="positive-value">
+              <td className="credit-value">
                 {isEditable ? (
                   <input
                     className="bank-sheet-input money"
@@ -664,7 +939,7 @@ function BankAccountTable({
                   formatOptionalCurrency(getBankCreditCents(account))
                 )}
               </td>
-              <td className={getBankStatementBalanceCents(account) < 0 ? 'negative-value' : 'positive-value'}>
+              <td className={getBalanceValueClass(getBankStatementBalanceCents(account))}>
                 {isEditable ? (
                   <input
                     className="bank-sheet-input money"
@@ -745,7 +1020,7 @@ function BankAccountTable({
                   onChange={(event) => onDraftChange({ accountLabel: event.target.value })}
                 />
               </td>
-              <td>
+              <td className="debit-value">
                 <input
                   className="bank-sheet-input money"
                   placeholder="0,00"
@@ -755,7 +1030,7 @@ function BankAccountTable({
                   onChange={(event) => onDraftChange({ debitValue: event.target.value })}
                 />
               </td>
-              <td>
+              <td className="credit-value">
                 <input
                   className="bank-sheet-input money"
                   placeholder="0,00"
@@ -765,7 +1040,7 @@ function BankAccountTable({
                   onChange={(event) => onDraftChange({ creditValue: event.target.value })}
                 />
               </td>
-              <td>
+              <td className="balance-positive-value">
                 <input
                   className="bank-sheet-input money"
                   placeholder="0,00"
@@ -808,8 +1083,8 @@ function BankAccountTable({
             <td
               className={
                 accounts.filter((account) => account.includeInCashFlow).reduce((sum, account) => sum + account.balanceCents, 0) < 0
-                  ? 'negative-value'
-                  : 'positive-value'
+                  ? 'balance-negative-value'
+                  : 'balance-positive-value'
               }
             >
               {formatCurrency(accounts.filter((account) => account.includeInCashFlow).reduce((sum, account) => sum + account.balanceCents, 0))}
@@ -823,6 +1098,107 @@ function BankAccountTable({
     </div>
   );
 }
+
+function DateRangeControl({
+  isOpen,
+  preset,
+  startDate,
+  endDate,
+  availableStartDate,
+  availableEndDate,
+  customStartDate,
+  customEndDate,
+  onPresetChange,
+  onCustomStartDateChange,
+  onCustomEndDateChange,
+  onToggle,
+  onClose,
+}: {
+  isOpen: boolean;
+  preset: DateRangePreset;
+  startDate: string;
+  endDate: string;
+  availableStartDate: string;
+  availableEndDate: string;
+  customStartDate: string;
+  customEndDate: string;
+  onPresetChange: (preset: DateRangePreset) => void;
+  onCustomStartDateChange: (value: string) => void;
+  onCustomEndDateChange: (value: string) => void;
+  onToggle: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="period-menu">
+      <button
+        type="button"
+        className={isOpen ? 'period-menu-button active' : 'period-menu-button'}
+        onClick={onToggle}
+        aria-expanded={isOpen}
+      >
+        <CalendarDays size={15} />
+        <span>{formatPeriodLabel(startDate, endDate)}</span>
+      </button>
+
+      {isOpen ? (
+        <div className="period-popover" role="dialog" aria-label="Selecionar período do fluxo de caixa">
+          <div className="period-popover-header">
+            <div>
+              <strong>Período exibido</strong>
+              <small>
+                Base: {formatCashFlowReportDate(availableStartDate)} ate {formatCashFlowReportDate(availableEndDate)}
+              </small>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Fechar filtro de período">
+              x
+            </button>
+          </div>
+
+          <div className="period-actions" role="group" aria-label="Atalhos de período">
+            {DATE_RANGE_PRESETS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={preset === option.value ? 'active' : ''}
+                onClick={() => onPresetChange(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="period-date-fields">
+            <label>
+              <span>De</span>
+              <input
+                type="date"
+                min={availableStartDate}
+                max={availableEndDate}
+                value={customStartDate || startDate}
+                onChange={(event) => onCustomStartDateChange(event.target.value)}
+              />
+            </label>
+            <label>
+              <span>Ate</span>
+              <input
+                type="date"
+                min={availableStartDate}
+                max={availableEndDate}
+                value={customEndDate || endDate}
+                onChange={(event) => onCustomEndDateChange(event.target.value)}
+              />
+            </label>
+          </div>
+
+          <button type="button" className="period-apply-button" onClick={onClose}>
+            Aplicar período
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function Metric({
   label,
   value,
@@ -833,7 +1209,7 @@ function Metric({
 }: {
   label: string;
   value: number;
-  tone?: 'neutral' | 'positive' | 'negative';
+  tone?: FinancialTone;
   icon?: React.ReactNode;
   note?: string;
   numeric?: boolean;
@@ -848,6 +1224,20 @@ function Metric({
       {icon ? <i>{icon}</i> : null}
     </article>
   );
+}
+
+type FinancialTone = 'neutral' | 'positive' | 'negative' | 'debit' | 'credit' | 'balance-positive' | 'balance-negative';
+
+function getBalanceTone(valueCents: number): FinancialTone {
+  return valueCents < 0 ? 'balance-negative' : 'balance-positive';
+}
+
+function getFinalBalanceCardToneClass(valueCents: number): 'final-balance-card-positive' | 'final-balance-card-negative' {
+  return valueCents < 0 ? 'final-balance-card-negative' : 'final-balance-card-positive';
+}
+
+function getBalanceValueClass(valueCents: number): 'balance-positive-value' | 'balance-negative-value' {
+  return valueCents < 0 ? 'balance-negative-value' : 'balance-positive-value';
 }
 
 function TableFilters({
@@ -908,7 +1298,7 @@ function MovementTable({ movements }: { movements: CashFlowReportMovement[] }) {
               </td>
               <td>{movement.isForecast ? 'Sim' : 'Não'}</td>
               <td>{movement.isSettled ? 'Sim' : 'Não'}</td>
-              <td>{formatCurrency(movement.valueCents)}</td>
+              <td className={movement.transactionType === 'DEBITO' ? 'debit-value' : 'credit-value'}>{formatCurrency(movement.valueCents)}</td>
             </tr>
           ))}
         </tbody>
