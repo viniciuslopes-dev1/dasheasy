@@ -1,5 +1,6 @@
 import * as XLSX from '@e965/xlsx';
 import type {
+  CashFlowReportBankAccount,
   CashFlowReportDataset,
   CashFlowReportImportResult,
   CashFlowReportIssue,
@@ -21,9 +22,18 @@ const REQUIRED_COLUMNS = {
   valueCents: ['VALOR TOTAL', 'VALOR'],
 } as const;
 
+const DETAIL_COLUMNS = {
+  documentNumber: REQUIRED_COLUMNS.documentNumber,
+  dueDate: REQUIRED_COLUMNS.dueDate,
+  accountName: REQUIRED_COLUMNS.accountName,
+  valueCents: REQUIRED_COLUMNS.valueCents,
+} as const;
+
 type SheetRow = unknown[];
 type ColumnKey = keyof typeof REQUIRED_COLUMNS;
 type ColumnMap = Record<ColumnKey, number>;
+type DetailColumnKey = keyof typeof DETAIL_COLUMNS;
+type DetailColumnMap = Record<DetailColumnKey, number>;
 
 export function validateCashFlowReportExcelFile(file: File): string | null {
   const extension = file.name.split('.').pop()?.toLowerCase();
@@ -58,30 +68,30 @@ export function analyzeCashFlowReportWorkbook(
   previousDataset?: CashFlowReportDataset | null,
 ): CashFlowReportImportResult {
   if (workbook.SheetNames.length === 0) {
-    throw new Error('A planilha nao possui abas para importar.');
-  }
-
-  const sheetName = workbook.SheetNames[0];
-  const rows = getSheetRows(workbook, sheetName);
-  const headerIndex = rows.findIndex((row) => findColumnMap(row) !== null);
-  if (headerIndex < 0) {
-    throw new Error('Nao foi possivel encontrar as colunas obrigatorias do fluxo de caixa.');
-  }
-
-  const columnMap = findColumnMap(rows[headerIndex]);
-  if (!columnMap) {
-    throw new Error('A planilha nao possui todas as colunas obrigatorias do fluxo de caixa.');
+    throw new Error('A planilha não possui abas para importar.');
   }
 
   const issues: CashFlowReportIssue[] = [];
-  const movements = rows
-    .slice(headerIndex + 1)
-    .flatMap((row, index) => parseMovement(row, headerIndex + index + 2, sheetName, columnMap, issues));
+  const standardSheet = findStandardSheet(workbook);
+  const sheetName = standardSheet?.sheetName ?? findFirstMovementSheetName(workbook) ?? workbook.SheetNames[0];
+  const movements = standardSheet
+    ? standardSheet.rows
+        .slice(standardSheet.headerIndex + 1)
+        .flatMap((row, index) =>
+          parseMovement(row, standardSheet.headerIndex + index + 2, standardSheet.sheetName, standardSheet.columnMap, issues),
+        )
+    : parseSeparatedMovementSheets(workbook, issues);
 
   if (movements.length === 0) {
-    throw new Error('Nenhum lancamento valido foi encontrado na planilha de fluxo de caixa.');
+    throw new Error('Nenhum lançamento valido foi encontrado na planilha de fluxo de caixa.');
   }
 
+  const importedBankAccounts = parseBankAccounts(workbook);
+  const bankAccounts =
+    importedBankAccounts.length > 0
+      ? mergeImportedBankAccounts(importedBankAccounts, previousDataset?.bankAccounts ?? [])
+      : previousDataset?.bankAccounts ?? [];
+  const initialBalanceCents = bankAccounts.length > 0 ? calculateBankInitialBalance(bankAccounts) : 0;
   const accumulatedMovements = previousDataset ? mergeMovements(previousDataset.movements, movements) : movements;
   const startDate = accumulatedMovements.reduce(
     (min, movement) => (movement.dueDate < min ? movement.dueDate : min),
@@ -93,7 +103,7 @@ export function analyzeCashFlowReportWorkbook(
   );
   const anticipatedMovements = accumulatedMovements.filter((movement) => movement.isAnticipated);
   const cashFlowMovements = accumulatedMovements.filter((movement) => !movement.excludedFromCashFlow);
-  const dailyRows = buildDailyRows(startDate, endDate, cashFlowMovements, anticipatedMovements, 0);
+  const dailyRows = buildDailyRows(startDate, endDate, cashFlowMovements, anticipatedMovements, initialBalanceCents);
   const variations = previousDataset ? buildVariations(previousDataset.movements, movements) : [];
   const duplicateDocumentCount = countDuplicateDocuments(movements);
 
@@ -102,7 +112,7 @@ export function analyzeCashFlowReportWorkbook(
       type: 'duplicate_document_numbers',
       severity: 'info',
       sheetName,
-      message: `${duplicateDocumentCount} documentos aparecem mais de uma vez. A comparacao usa documento, razao social e tipo para evitar falsos duplicados.`,
+      message: `${duplicateDocumentCount} documentos aparecem mais de uma vez. A comparação usa documento, razão social e tipo para evitar falsos duplicados.`,
     });
   }
 
@@ -111,7 +121,7 @@ export function analyzeCashFlowReportWorkbook(
       type: 'anticipated_credits',
       severity: 'info',
       sheetName,
-      message: `${anticipatedMovements.length} creditos baixados foram classificados como Antecipados e nao entram no fluxo de caixa.`,
+      message: `${anticipatedMovements.length} créditos baixados foram classificados como Antecipados e não entram no fluxo de caixa.`,
     });
   }
 
@@ -122,8 +132,9 @@ export function analyzeCashFlowReportWorkbook(
     monthLabel: buildPeriodLabel(startDate, endDate),
     startDate,
     endDate,
-    initialBalanceCents: 0,
-    initialBalanceSource: 'not_informed',
+    initialBalanceCents,
+    initialBalanceSource: bankAccounts.length > 0 ? 'spreadsheet' : 'not_informed',
+    bankAccounts,
     movements: accumulatedMovements,
     cashFlowMovements,
     anticipatedMovements,
@@ -143,12 +154,32 @@ export function analyzeCashFlowReportWorkbook(
       debitMovementCount: accumulatedMovements.filter((movement) => movement.transactionType === 'DEBITO').length,
       creditMovementCount: accumulatedMovements.filter((movement) => movement.transactionType === 'CREDITO').length,
       anticipatedCount: anticipatedMovements.length,
+      bankAccountCount: bankAccounts.length,
       dailyRowCount: dailyRows.length,
       variationCount: variations.length,
       duplicateDocumentCount,
       issues,
     },
   };
+}
+
+function findStandardSheet(workbook: XLSX.WorkBook) {
+  for (const sheetName of workbook.SheetNames) {
+    const rows = getSheetRows(workbook, sheetName);
+    const headerIndex = rows.findIndex((row) => findColumnMap(row) !== null);
+    if (headerIndex >= 0) {
+      const columnMap = findColumnMap(rows[headerIndex]);
+      if (columnMap) {
+        return { sheetName, rows, headerIndex, columnMap };
+      }
+    }
+  }
+
+  return null;
+}
+
+function findFirstMovementSheetName(workbook: XLSX.WorkBook): string | null {
+  return workbook.SheetNames.find((sheetName) => isDebitSheet(sheetName) || isCreditSheet(sheetName)) ?? null;
 }
 
 function mergeMovements(
@@ -211,6 +242,98 @@ function findColumnMap(row: SheetRow): ColumnMap | null {
   return Object.fromEntries(entries) as ColumnMap;
 }
 
+function findDetailColumnMap(row: SheetRow): DetailColumnMap | null {
+  const normalizedHeaders = row.map((cell) => normalizeTextKey(cell));
+  const entries = Object.entries(DETAIL_COLUMNS).map(([key, candidates]) => {
+    const index = normalizedHeaders.findIndex((header) => candidates.includes(header as never));
+    return [key, index] as const;
+  });
+
+  if (entries.some(([, index]) => index < 0)) {
+    return null;
+  }
+
+  return Object.fromEntries(entries) as DetailColumnMap;
+}
+
+function parseSeparatedMovementSheets(workbook: XLSX.WorkBook, issues: CashFlowReportIssue[]): CashFlowReportMovement[] {
+  return workbook.SheetNames.flatMap((sheetName) => {
+    const transactionType = isDebitSheet(sheetName) ? 'DEBITO' : isCreditSheet(sheetName) ? 'CREDITO' : null;
+    if (!transactionType) {
+      return [];
+    }
+
+    const rows = getSheetRows(workbook, sheetName);
+    const headerIndex = rows.findIndex((row) => findDetailColumnMap(row) !== null);
+    const columnMap = headerIndex >= 0 ? findDetailColumnMap(rows[headerIndex]) : null;
+    if (!columnMap) {
+      return [];
+    }
+
+    return rows
+      .slice(headerIndex + 1)
+      .flatMap((row, index) =>
+        parseSeparatedMovement(row, headerIndex + index + 2, sheetName, columnMap, transactionType, issues),
+      );
+  });
+}
+
+function parseSeparatedMovement(
+  row: SheetRow,
+  sourceRow: number,
+  sheetName: string,
+  columnMap: DetailColumnMap,
+  transactionType: CashFlowReportTransactionType,
+  issues: CashFlowReportIssue[],
+): CashFlowReportMovement[] {
+  if (row.every((cell) => !normalizeWhitespace(cell))) {
+    return [];
+  }
+
+  const documentNumber = normalizeWhitespace(row[columnMap.documentNumber]);
+  const accountName = normalizeWhitespace(row[columnMap.accountName]);
+  const dueDate = parseReportDate(row[columnMap.dueDate]);
+  const valueCents = parseCurrencyToCents(row[columnMap.valueCents]);
+
+  if (!documentNumber && !accountName && !dueDate && valueCents !== null) {
+    return [];
+  }
+
+  if (!documentNumber || !accountName || !dueDate || valueCents === null) {
+    issues.push({
+      type: 'invalid_cash_flow_row',
+      severity: 'warning',
+      sheetName,
+      row: sourceRow,
+      message: `Linha ${sourceRow} ignorada por documento, conta, data ou valor inválido.`,
+    });
+    return [];
+  }
+
+  return [
+    {
+      id: createMovementId(sourceRow, documentNumber, accountName, transactionType),
+      sourceRow,
+      documentNumber,
+      transactionType,
+      accountName,
+      isSettled: false,
+      isForecast: true,
+      dueDate,
+      valueCents,
+      isAnticipated: false,
+      excludedFromCashFlow: false,
+      rawData: {
+        documentNumber,
+        accountName,
+        dueDate: row[columnMap.dueDate],
+        value: row[columnMap.valueCents],
+        sourceSheet: sheetName,
+      },
+    },
+  ];
+}
+
 function parseMovement(
   row: SheetRow,
   sourceRow: number,
@@ -236,7 +359,7 @@ function parseMovement(
       severity: 'warning',
       sheetName,
       row: sourceRow,
-      message: `Linha ${sourceRow} ignorada por documento, tipo, conta, data ou valor invalido.`,
+      message: `Linha ${sourceRow} ignorada por documento, tipo, conta, data ou valor inválido.`,
     });
     return [];
   }
@@ -269,6 +392,111 @@ function parseMovement(
   ];
 }
 
+function parseBankAccounts(workbook: XLSX.WorkBook): CashFlowReportBankAccount[] {
+  for (const sheetName of workbook.SheetNames) {
+    const rows = getSheetRows(workbook, sheetName);
+    const headerIndex = rows.findIndex((row) => {
+      const normalized = row.map((cell) => normalizeTextKey(cell));
+      return normalized.includes('BANCO') && normalized.includes('SALDO');
+    });
+
+    if (headerIndex < 0) {
+      continue;
+    }
+
+    const header = rows[headerIndex].map((cell) => normalizeTextKey(cell));
+    const codeIndex = header.findIndex((cell) => ['CODIGO', 'COD'].includes(cell));
+    const accountIndex = header.findIndex((cell) => cell === 'BANCO');
+    const debitIndex = header.findIndex((cell) => cell === 'DEBITO');
+    const creditIndex = header.findIndex((cell) => cell === 'CREDITO');
+    const runningBalanceIndex = header.findIndex((cell) => cell === 'SALDO');
+
+    if (accountIndex < 0) {
+      continue;
+    }
+
+    const accounts: CashFlowReportBankAccount[] = [];
+    for (const [offset, row] of rows.slice(headerIndex + 1).entries()) {
+      const firstCell = normalizeTextKey(row[0]);
+      if (firstCell.startsWith('SALDO INICIAL') || firstCell === 'DATA') {
+        break;
+      }
+
+      const accountLabel = normalizeWhitespace(row[accountIndex]);
+      if (!accountLabel) {
+        continue;
+      }
+
+      const code = codeIndex >= 0 ? normalizeWhitespace(row[codeIndex]) : String(offset + 1).padStart(2, '0');
+      const debitCents = debitIndex >= 0 ? parseCurrencyToCents(row[debitIndex]) : null;
+      const creditCents = creditIndex >= 0 ? parseCurrencyToCents(row[creditIndex]) : null;
+      const balanceCents = creditCents !== null && creditCents !== 0 ? creditCents : debitCents ?? 0;
+      const runningBalanceCents = runningBalanceIndex >= 0 ? parseCurrencyToCents(row[runningBalanceIndex]) : null;
+      const isGuaranteed = normalizeTextKey(accountLabel).includes('GARANTIDA');
+
+      accounts.push({
+        id: createBankAccountId(code, accountLabel),
+        code,
+        bankName: parseBankName(accountLabel),
+        accountLabel,
+        debitCents,
+        creditCents,
+        balanceCents,
+        runningBalanceCents,
+        isGuaranteed,
+        includeInCashFlow: !isGuaranteed,
+      });
+    }
+
+    if (accounts.length > 0) {
+      return accounts;
+    }
+  }
+
+  return [];
+}
+
+function mergeImportedBankAccounts(
+  importedAccounts: CashFlowReportBankAccount[],
+  previousAccounts: CashFlowReportBankAccount[],
+): CashFlowReportBankAccount[] {
+  if (previousAccounts.length === 0) {
+    return importedAccounts;
+  }
+
+  const previousById = new Map(previousAccounts.map((account) => [account.id, account]));
+  const importedIds = new Set(importedAccounts.map((account) => account.id));
+  const importedWithSavedFlags = importedAccounts.map((account) => {
+    const previous = previousById.get(account.id);
+    if (!previous) {
+      return account;
+    }
+
+    return {
+      ...account,
+      isGuaranteed: previous.isGuaranteed,
+      includeInCashFlow: previous.isGuaranteed ? false : previous.includeInCashFlow,
+    };
+  });
+  const manualAccounts = previousAccounts.filter(
+    (account) => account.id.startsWith('manual-bank-') && !importedIds.has(account.id),
+  );
+
+  return [...importedWithSavedFlags, ...manualAccounts];
+}
+
+function calculateBankInitialBalance(accounts: CashFlowReportBankAccount[]): number {
+  return accounts.reduce((sum, account) => (account.includeInCashFlow ? sum + account.balanceCents : sum), 0);
+}
+
+function parseBankName(accountLabel: string): string {
+  return normalizeWhitespace(accountLabel.split('-')[0]) || accountLabel;
+}
+
+function createBankAccountId(code: string, accountLabel: string): string {
+  return normalizeTextKey(`${code}-${accountLabel}`).toLowerCase().replace(/\s+/g, '-');
+}
+
 function parseTransactionType(value: unknown): CashFlowReportTransactionType | null {
   const key = normalizeTextKey(value);
   if (key.startsWith('DEB')) {
@@ -278,6 +506,14 @@ function parseTransactionType(value: unknown): CashFlowReportTransactionType | n
     return 'CREDITO';
   }
   return null;
+}
+
+function isDebitSheet(sheetName: string): boolean {
+  return normalizeTextKey(sheetName).includes('DEBITO');
+}
+
+function isCreditSheet(sheetName: string): boolean {
+  return normalizeTextKey(sheetName).includes('CREDITO');
 }
 
 function parseBoolean(value: unknown): boolean {
@@ -367,8 +603,8 @@ function buildVariations(
         impactCents: getMovementSignedImpact(movement),
         isAnticipated: movement.isAnticipated,
         description: movement.isAnticipated
-          ? 'Credito antecipado novo, fora do calculo do fluxo.'
-          : 'Lancamento novo em relacao a versao publicada anterior.',
+          ? 'Crédito antecipado novo, fora do cálculo do fluxo.'
+          : 'Lançamento novo em relação a versão publicada anterior.',
       });
       return;
     }
@@ -394,10 +630,10 @@ function buildVariations(
         impactCents: currentImpact - previousImpact,
         isAnticipated: movement.isAnticipated,
         description: valueChanged
-          ? 'Valor alterado em relacao a versao publicada anterior.'
+          ? 'Valor alterado em relação a versão publicada anterior.'
           : dateChanged
-            ? 'Data de vencimento alterada em relacao a versao publicada anterior.'
-            : 'Tipo do lancamento alterado em relacao a versao publicada anterior.',
+            ? 'Data de vencimento alterada em relação a versão publicada anterior.'
+            : 'Tipo do lançamento alterado em relação a versão publicada anterior.',
       });
     }
   });

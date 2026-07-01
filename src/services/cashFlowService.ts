@@ -45,7 +45,7 @@ const creditCounterparties = [
   'Cliente exportacao',
   'Recebimento carteira',
   'Cliente mercado interno',
-  'Antecipacao bancaria',
+  'Antecipação bancária',
   'Contrato recorrente',
 ];
 
@@ -111,7 +111,7 @@ export const sampleCashFlowDataset: CashFlowDataset = {
       changeType: 'CRIADO',
       movementType: 'DEBITO',
       impactCents: -1850000,
-      reason: 'Despesa nao prevista na abertura do mes.',
+      reason: 'Despesa não prevista na abertura do mês.',
     },
     {
       id: 'change-2',
@@ -121,7 +121,7 @@ export const sampleCashFlowDataset: CashFlowDataset = {
       changeType: 'CRIADO',
       movementType: 'CREDITO',
       impactCents: 2500000,
-      reason: 'Credito entrou antes do previsto.',
+      reason: 'Crédito entrou antes do previsto.',
     },
     {
       id: 'change-3',
@@ -131,7 +131,7 @@ export const sampleCashFlowDataset: CashFlowDataset = {
       changeType: 'VALOR_ALTERADO',
       movementType: 'DEBITO',
       impactCents: -4200000,
-      reason: 'Alteracao de valor em titulo ja previsto.',
+      reason: 'Alteração de valor em título ja previsto.',
     },
     {
       id: 'change-4',
@@ -141,7 +141,7 @@ export const sampleCashFlowDataset: CashFlowDataset = {
       changeType: 'CRIADO',
       movementType: 'DEBITO',
       impactCents: -1800000,
-      reason: 'Lancamento fiscal incluido apos previsao inicial.',
+      reason: 'Lançamento fiscal incluido apos previsão inicial.',
     },
     {
       id: 'change-5',

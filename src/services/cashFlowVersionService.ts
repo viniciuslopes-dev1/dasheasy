@@ -86,7 +86,7 @@ export async function loadPublishedCashFlow(
     .maybeSingle();
 
   if (error) {
-    throw new Error('Nao foi possivel carregar a previsao financeira publicada.');
+    throw new Error('Não foi possível carregar a previsão financeira publicada.');
   }
 
   if (!data) {
@@ -115,7 +115,7 @@ export async function loadAdminCashFlowVersions(
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error('Nao foi possivel carregar o historico da previsao financeira.');
+    throw new Error('Não foi possível carregar o histórico da previsão financeira.');
   }
 
   return (data ?? []).map(mapCashFlowVersionRow);
@@ -141,7 +141,7 @@ export async function loadCashFlowVersion(
     .maybeSingle();
 
   if (error) {
-    throw new Error('Nao foi possivel carregar a versao da previsao financeira.');
+    throw new Error('Não foi possível carregar a versão da previsão financeira.');
   }
 
   if (!data) {
@@ -176,7 +176,7 @@ export async function saveCashFlowDraft(
     .from('cash_flow_versions')
     .insert({
       status: 'draft',
-      source_file_name: dataset.sourceFileName ?? 'previsao-financeira.xlsx',
+      source_file_name: dataset.sourceFileName ?? 'previsão-financeira.xlsx',
       month_label: dataset.monthLabel,
       start_date: dataset.startDate,
       end_date: dataset.endDate,
@@ -192,7 +192,7 @@ export async function saveCashFlowDraft(
     .single();
 
   if (error) {
-    throw new Error('Nao foi possivel criar a versao da previsao financeira.');
+    throw new Error('Não foi possível criar a versão da previsão financeira.');
   }
 
   return mapCashFlowVersionRow(data);
@@ -209,7 +209,7 @@ export async function publishCashFlowVersion(
 
   const db = getClient(client);
   if (!db?.rpc) {
-    throw new Error('Supabase nao esta configurado para publicar a previsao financeira.');
+    throw new Error('Supabase não está configurado para publicar a previsão financeira.');
   }
 
   const { error } = await db.rpc('publish_cash_flow_version', {
@@ -217,6 +217,6 @@ export async function publishCashFlowVersion(
   });
 
   if (error) {
-    throw new Error('Nao foi possivel publicar a versao da previsao financeira.');
+    throw new Error('Não foi possível publicar a versão da previsão financeira.');
   }
 }

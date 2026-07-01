@@ -44,7 +44,7 @@ export default function CashFlowUpload({ userId, baselineDataset, onImported }: 
       setDataset(result.dataset);
       setSummary(result.summary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel analisar a planilha de previsão financeira.');
+      setError(err instanceof Error ? err.message : 'Não foi possível analisar a planilha de previsão financeira.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -60,7 +60,7 @@ export default function CashFlowUpload({ userId, baselineDataset, onImported }: 
     setSuccess('');
     try {
       if (!isLocalTestMode && supabase && !userId) {
-        throw new Error('Faca login como administrador para salvar a versao.');
+        throw new Error('Faça login como administrador para salvar a versão.');
       }
 
       const version = await saveCashFlowDraft(dataset, userId);
@@ -69,11 +69,11 @@ export default function CashFlowUpload({ userId, baselineDataset, onImported }: 
         isLocalTestMode
           ? 'Rascunho salvo somente neste navegador. Publique para atualizar a visualizacao local.'
           : supabase
-          ? 'Rascunho salvo. Publique a versao para atualizar o link principal.'
-          : 'Supabase nao configurado: dados carregados apenas para analise.',
+          ? 'Rascunho salvo. Publique a versão para atualizar o link principal.'
+          : 'Supabase não configurado: dados carregados apenas para analise.',
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel salvar o rascunho de previsão financeira.');
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar o rascunho de previsão financeira.');
     } finally {
       setIsSaving(false);
     }
@@ -86,7 +86,7 @@ export default function CashFlowUpload({ userId, baselineDataset, onImported }: 
       <div className="panel-heading">
         <div>
           <h2>Importar previsão financeira</h2>
-          <p>A planilha cria uma nova versao em rascunho antes de aparecer no link principal.</p>
+          <p>A planilha cria uma nova versão em rascunho antes de aparecer no link principal.</p>
         </div>
         <FileSpreadsheet size={22} />
       </div>
@@ -103,7 +103,7 @@ export default function CashFlowUpload({ userId, baselineDataset, onImported }: 
         />
       </label>
 
-      {isAnalyzing ? <div className="status muted">Analisando contas, dias, debitos e creditos...</div> : null}
+      {isAnalyzing ? <div className="status muted">Analisando contas, dias, débitos e créditos...</div> : null}
       {error ? (
         <div className="status error">
           <AlertTriangle size={16} />
@@ -129,7 +129,7 @@ export default function CashFlowUpload({ userId, baselineDataset, onImported }: 
               <strong>{dataset.movements.length}</strong>
             </div>
             <div>
-              <span>Previsao atual</span>
+              <span>Previsão atual</span>
               <strong>{formatCurrency(metrics.currentForecastClosingCents)}</strong>
             </div>
             <div>
@@ -139,8 +139,8 @@ export default function CashFlowUpload({ userId, baselineDataset, onImported }: 
           </div>
 
           <div className="cash-flow-upload-summary">
-            <span>{summary.debitMovementCount} debitos</span>
-            <span>{summary.creditMovementCount} creditos</span>
+            <span>{summary.debitMovementCount} débitos</span>
+            <span>{summary.creditMovementCount} créditos</span>
             <span>{summary.dailyEntryCount} dias de fluxo</span>
           </div>
 

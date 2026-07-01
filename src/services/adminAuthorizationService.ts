@@ -5,13 +5,13 @@ export async function isDashboardAdmin(
   client: Pick<SupabaseClient, 'rpc'> | null = supabase,
 ): Promise<boolean> {
   if (!client) {
-    throw new Error('Supabase nao esta configurado neste ambiente.');
+    throw new Error('Supabase não está configurado neste ambiente.');
   }
 
   const { data, error } = await client.rpc('is_dashboard_admin');
 
   if (error) {
-    throw new Error('Nao foi possivel verificar a permissao administrativa.');
+    throw new Error('Não foi possível verificar a permissão administrativa.');
   }
 
   return data === true;

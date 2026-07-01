@@ -13,9 +13,11 @@ interface AdminDashboardProps {
   dataset: DashboardDataset;
   cashFlowDataset: CashFlowDataset | null;
   cashFlowReportDataset: CashFlowReportDataset | null;
+  cashFlowReportVersionId?: string | null;
   isLoading: boolean;
   error: string;
   onOpenSettings: () => void;
+  onSaveCashFlowReportDataset?: (dataset: CashFlowReportDataset) => Promise<void>;
 }
 
 export default function AdminDashboard({
@@ -23,9 +25,11 @@ export default function AdminDashboard({
   dataset,
   cashFlowDataset,
   cashFlowReportDataset,
+  cashFlowReportVersionId,
   isLoading,
   error,
   onOpenSettings,
+  onSaveCashFlowReportDataset,
 }: AdminDashboardProps) {
   return (
     <section className="admin-workspace">
@@ -48,7 +52,12 @@ export default function AdminDashboard({
       ) : activeView === 'forecast' ? (
         <CashFlowDashboard dataset={cashFlowDataset} />
       ) : activeView === 'cashFlow' ? (
-        <CashFlowReportDashboard dataset={cashFlowReportDataset} />
+        <CashFlowReportDashboard
+          dataset={cashFlowReportDataset}
+          isEditable
+          versionId={cashFlowReportVersionId}
+          onSaveDataset={onSaveCashFlowReportDataset}
+        />
       ) : (
         <FinancialDashboard
           records={dataset.records}

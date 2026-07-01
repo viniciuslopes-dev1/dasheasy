@@ -13,6 +13,7 @@ import {
   loadLocalPublishedCashFlowReport,
   publishLocalCashFlowReportVersion,
   saveLocalCashFlowReportDraft,
+  updateLocalCashFlowReportVersionDataset,
 } from './localVersionStore';
 
 type SupabaseQueryClient = {
@@ -90,7 +91,7 @@ export async function loadPublishedCashFlowReport(
     .maybeSingle();
 
   if (error) {
-    throw new Error('Nao foi possivel carregar o fluxo de caixa publicado.');
+    throw new Error('Não foi possível carregar o fluxo de caixa publicado.');
   }
 
   if (!data) {
@@ -119,7 +120,7 @@ export async function loadAdminCashFlowReportVersions(
     .order('created_at', { ascending: false });
 
   if (error) {
-    throw new Error('Nao foi possivel carregar o historico do fluxo de caixa.');
+    throw new Error('Não foi possível carregar o histórico do fluxo de caixa.');
   }
 
   return (data ?? []).map(mapCashFlowReportVersionRow);
@@ -145,7 +146,7 @@ export async function loadCashFlowReportVersion(
     .maybeSingle();
 
   if (error) {
-    throw new Error('Nao foi possivel carregar a versao do fluxo de caixa.');
+    throw new Error('Não foi possível carregar a versão do fluxo de caixa.');
   }
 
   if (!data) {
@@ -199,7 +200,57 @@ export async function saveCashFlowReportDraft(
     .single();
 
   if (error) {
-    throw new Error('Nao foi possivel criar a versao do fluxo de caixa.');
+    throw new Error('Não foi possível criar a versão do fluxo de caixa.');
+  }
+
+  return mapCashFlowReportVersionRow(data);
+}
+
+export async function updateCashFlowReportVersionDataset(
+  versionId: string,
+  dataset: CashFlowReportDataset,
+  client?: SupabaseQueryClient | null,
+): Promise<CashFlowReportVersion | null> {
+  if (isLocalTestMode && !client) {
+    return updateLocalCashFlowReportVersionDataset(versionId, dataset);
+  }
+
+  const db = getClient(client);
+  if (!db?.from) {
+    return null;
+  }
+
+  const metrics = calculateCashFlowReportMetrics(dataset);
+  const metadata = {
+    issueCount: dataset.issues.length,
+    duplicateDocumentIssue: dataset.issues.some((issue) => issue.type === 'duplicate_document_numbers'),
+    cashFlowMovementCount: dataset.cashFlowMovements.length,
+    bankAccountCount: dataset.bankAccounts.length,
+    manualBankAccountCount: dataset.bankAccounts.filter((account) => account.id.startsWith('manual-bank-')).length,
+  };
+
+  const { data, error } = await db
+    .from('cash_flow_reports')
+    .update({
+      source_file_name: dataset.sourceFileName ?? 'fluxo-de-caixa.xlsx',
+      month_label: dataset.monthLabel,
+      start_date: dataset.startDate,
+      end_date: dataset.endDate,
+      movement_count: dataset.movements.length,
+      daily_row_count: dataset.dailyRows.length,
+      anticipated_count: dataset.anticipatedMovements.length,
+      variation_count: dataset.variations.length,
+      initial_balance_cents: dataset.initialBalanceCents,
+      closing_balance_cents: metrics.closingBalanceCents,
+      dataset,
+      metadata,
+    })
+    .eq('id', versionId)
+    .select()
+    .single();
+
+  if (error) {
+    throw new Error('Não foi possível salvar os bancos do fluxo de caixa.');
   }
 
   return mapCashFlowReportVersionRow(data);
@@ -216,7 +267,7 @@ export async function publishCashFlowReportVersion(
 
   const db = getClient(client);
   if (!db?.rpc) {
-    throw new Error('Supabase nao esta configurado para publicar o fluxo de caixa.');
+    throw new Error('Supabase não está configurado para publicar o fluxo de caixa.');
   }
 
   const { error } = await db.rpc('publish_cash_flow_report', {
@@ -224,6 +275,6 @@ export async function publishCashFlowReportVersion(
   });
 
   if (error) {
-    throw new Error('Nao foi possivel publicar a versao do fluxo de caixa.');
+    throw new Error('Não foi possível publicar a versão do fluxo de caixa.');
   }
 }

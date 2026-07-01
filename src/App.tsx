@@ -19,6 +19,7 @@ import {
   loadCashFlowReportVersion,
   loadPublishedCashFlowReport,
   publishCashFlowReportVersion,
+  updateCashFlowReportVersionDataset,
 } from './services/cashFlowReportVersionService';
 import { isDashboardAdmin } from './services/adminAuthorizationService';
 import { isLocalTestMode, LOCAL_TEST_USER_ID, LOCAL_TEST_USER_NAME } from './services/localTestMode';
@@ -338,7 +339,7 @@ export default function App() {
         setError(
           err instanceof Error
             ? err.message
-            : 'Nao foi possivel verificar o acesso administrativo.',
+            : 'Não foi possível verificar o acesso administrativo.',
         );
         await supabase?.auth.signOut();
       })
@@ -375,6 +376,16 @@ export default function App() {
     await refreshAdminWorkspace();
   }
 
+  async function handleSaveCashFlowReportDataset(dataset: CashFlowReportDataset) {
+    if (!adminCashFlowReport.version) {
+      throw new Error('Importe ou selecione uma versão do fluxo de caixa antes de salvar bancos.');
+    }
+
+    const version = await updateCashFlowReportVersionDataset(adminCashFlowReport.version.id, dataset);
+    setAdminCashFlowReport({ version: version ?? adminCashFlowReport.version, dataset });
+    setCashFlowReportVersions(await loadAdminCashFlowReportVersions());
+  }
+
   async function handleSelectVersion(versionId: string) {
     setError('');
     setIsAdminLoading(true);
@@ -395,7 +406,7 @@ export default function App() {
     try {
       setAdminCashFlow(await loadCashFlowVersion(versionId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel abrir a versao de previsao financeira.');
+      setError(err instanceof Error ? err.message : 'Não foi possível abrir a versão de previsão financeira.');
     } finally {
       setIsAdminLoading(false);
     }
@@ -408,7 +419,7 @@ export default function App() {
     try {
       setAdminCashFlowReport(await loadCashFlowReportVersion(versionId));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel abrir a versao do fluxo de caixa.');
+      setError(err instanceof Error ? err.message : 'Não foi possível abrir a versão do fluxo de caixa.');
     } finally {
       setIsAdminLoading(false);
     }
@@ -446,7 +457,7 @@ export default function App() {
       }
       setCashFlowVersions(await loadAdminCashFlowVersions());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel publicar a previsao financeira.');
+      setError(err instanceof Error ? err.message : 'Não foi possível publicar a previsão financeira.');
     } finally {
       setIsCashFlowPublishing(false);
     }
@@ -465,7 +476,7 @@ export default function App() {
       }
       setCashFlowReportVersions(await loadAdminCashFlowReportVersions());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel publicar o fluxo de caixa.');
+      setError(err instanceof Error ? err.message : 'Não foi possível publicar o fluxo de caixa.');
     } finally {
       setIsCashFlowPublishing(false);
     }
@@ -628,9 +639,11 @@ export default function App() {
               dataset={activeDataset}
               cashFlowDataset={activeCashFlow.dataset}
               cashFlowReportDataset={activeCashFlowReport.dataset}
+              cashFlowReportVersionId={activeCashFlowReport.version?.id ?? null}
               isLoading={isAdminLoading}
               error={error}
               onOpenSettings={() => setIsSettingsOpen(true)}
+              onSaveCashFlowReportDataset={handleSaveCashFlowReportDataset}
             />
           </Suspense>
         ) : activeView === 'comparisons' ? (

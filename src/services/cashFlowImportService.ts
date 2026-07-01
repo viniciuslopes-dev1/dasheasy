@@ -53,7 +53,7 @@ export function analyzeCashFlowWorkbook(
   const creditSheetName = findSheetName(sheetNames, 'CREDITO');
 
   if (!flowSheetName) {
-    throw new Error('A aba FLUXO DE CAIXA nao foi encontrada.');
+    throw new Error('A aba FLUXO DE CAIXA não foi encontrada.');
   }
 
   const flowRows = getSheetRows(workbook, flowSheetName);
@@ -69,7 +69,7 @@ export function analyzeCashFlowWorkbook(
       type: 'ignored_sheet',
       severity: 'warning',
       sheetName,
-      message: `A aba ${sheetName} nao foi importada automaticamente para evitar duplicidade.`,
+      message: `A aba ${sheetName} não foi importada automaticamente para evitar duplicidade.`,
     });
   });
 
@@ -272,7 +272,7 @@ function parseFlowSheet(rows: SheetRow[], sheetName: string, issues: CashFlowImp
   const dataHeaderIndex = rows.findIndex((row) => normalizeTextKey(row[0]) === 'DATA');
 
   if (saldoInicialIndex < 0 || dataHeaderIndex < 0) {
-    throw new Error('A aba FLUXO DE CAIXA nao possui SALDO INICIAL ou cabecalho DATA.');
+    throw new Error('A aba FLUXO DE CAIXA não possui SALDO INICIAL ou cabecalho DATA.');
   }
 
   const bankRows = rows.slice(2, saldoInicialIndex);
@@ -290,7 +290,7 @@ function parseFlowSheet(rows: SheetRow[], sheetName: string, issues: CashFlowImp
       type: 'missing_bank_accounts',
       severity: 'warning',
       sheetName,
-      message: 'Nenhuma conta bancaria foi identificada na parte superior do fluxo.',
+      message: 'Nenhuma conta bancária foi identificada na parte superior do fluxo.',
     });
   }
 
@@ -347,7 +347,7 @@ function parseDailyEntry(
         severity: 'warning',
         sheetName,
         row: sourceRow,
-        message: `Linha ${sourceRow} ignorada no fluxo: data invalida.`,
+        message: `Linha ${sourceRow} ignorada no fluxo: data inválida.`,
       });
     }
     return null;

@@ -13,7 +13,7 @@ interface CashFlowVersionHistoryProps {
 
 function formatDate(value: string | null): string {
   if (!value) {
-    return 'Ainda nao publicado';
+    return 'Ainda não publicado';
   }
 
   return new Intl.DateTimeFormat('pt-BR', {
@@ -36,15 +36,15 @@ export default function CashFlowVersionHistory({
         <div>
           <span className="section-label">Historico</span>
           <h2>Historico da previsão financeira</h2>
-          <p>Revise, publique ou restaure uma versao anterior.</p>
+          <p>Revise, publique ou restaure uma versão anterior.</p>
         </div>
-        <button type="button" className="icon-button" aria-label="Fechar historico" onClick={onClose}>
+        <button type="button" className="icon-button" aria-label="Fechar histórico" onClick={onClose}>
           <X size={18} />
         </button>
       </div>
 
       {versions.length === 0 ? (
-        <div className="version-empty">Nenhuma versao de previsão salva. Importe uma planilha para criar o primeiro rascunho.</div>
+        <div className="version-empty">Nenhuma versão de previsão salva. Importe uma planilha para criar o primeiro rascunho.</div>
       ) : (
         <div className="version-list">
           {versions.map((version) => {
@@ -64,7 +64,7 @@ export default function CashFlowVersionHistory({
                   <small>
                     {version.monthLabel} - {version.movementCount} movimentacoes
                   </small>
-                  <small>Previsao: {formatCurrency(version.currentForecastCents)}</small>
+                  <small>Previsão: {formatCurrency(version.currentForecastCents)}</small>
                   <small>
                     {version.status === 'published'
                       ? `Publicado em ${formatDate(version.publishedAt)}`

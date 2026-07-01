@@ -36,7 +36,7 @@ type DailyCashFlowRow = ReturnType<typeof calculateDailyCashFlow>[number];
 
 const CASH_FLOW_TABS: Array<{ value: CashFlowTab; label: string }> = [
   { value: 'dashboard', label: 'Dashboard' },
-  { value: 'variations', label: 'Variacoes' },
+  { value: 'variations', label: 'Variações' },
 ];
 
 const DATE_RANGE_PRESETS: Array<{ value: DateRangePreset; label: string; days?: number }> = [
@@ -62,7 +62,7 @@ function compactCurrency(cents: number): string {
 }
 
 function getMovementTypeLabel(type: CashFlowTransactionType): string {
-  return type === 'DEBITO' ? 'Debito' : 'Credito';
+  return type === 'DEBITO' ? 'Débito' : 'Crédito';
 }
 
 function getVariationLabel(valueCents: number): string {
@@ -199,15 +199,15 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
     date: day.date,
     label: formatCashFlowDate(day.date),
     saldo: day.projectedBalanceCents,
-    debitos: day.debitCents,
-    creditos: day.creditCents,
+    débitos: day.debitCents,
+    créditos: day.creditCents,
   }));
 
   const snapshotChartData = (dataset?.snapshots ?? [])
     .filter((snapshot) => snapshot.snapshotDate >= effectiveDateRange.startDate && snapshot.snapshotDate <= effectiveDateRange.endDate)
     .map((snapshot) => ({
       label: formatCashFlowDate(snapshot.snapshotDate),
-      previsao: snapshot.closingForecastCents,
+      forecast: snapshot.closingForecastCents,
     }));
 
   useEffect(() => {
@@ -235,16 +235,16 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
         <section className="panel cash-flow-hero">
           <div>
             <span className="section-label">Previsão financeira</span>
-            <h2>Previsao inicial versus previsao atual</h2>
+            <h2>Previsão inicial versus previsão atual</h2>
             <p>
-              Controle debitos, creditos e variacoes para entender quais lancamentos mudaram o saldo previsto do mes.
+              Controle débitos, créditos e variações para entender quais lançamentos mudaram o saldo previsto do mês.
             </p>
           </div>
           {dataset && periodMetrics ? (
             <div className="cash-flow-hero-kpi">
-              <span>Previsao atual</span>
+              <span>Previsão atual</span>
               <strong>{formatCurrency(periodMetrics.currentForecastClosingCents)}</strong>
-              <small>{formatPeriodLabel(effectiveDateRange.startDate, effectiveDateRange.endDate)} no periodo</small>
+              <small>{formatPeriodLabel(effectiveDateRange.startDate, effectiveDateRange.endDate)} no período</small>
             </div>
           ) : null}
         </section>
@@ -254,7 +254,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
             <FileSpreadsheet size={28} />
             <div>
               <h3>Nenhuma previsão financeira publicada ainda.</h3>
-              <p>Quando o administrador publicar uma versao, os indicadores aparecerao aqui automaticamente.</p>
+              <p>Quando o administrador publicar uma versão, os indicadores aparecerão aqui automaticamente.</p>
             </div>
           </section>
         ) : (
@@ -275,12 +275,12 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
         {activeTab === 'dashboard' ? (
           <div className="cash-flow-dashboard-grid">
             <div className="cash-flow-metrics">
-              <MetricCard label="Saldo inicio periodo" value={periodMetrics.initialBalanceCents} icon={<Banknote size={18} />} />
+              <MetricCard label="Saldo inicio período" value={periodMetrics.initialBalanceCents} icon={<Banknote size={18} />} />
               <MetricCard label="Total a pagar" value={periodMetrics.totalDebitsCents} tone="negative" icon={<TrendingDown size={18} />} />
               <MetricCard label="Total a receber" value={periodMetrics.totalCreditsCents} tone="positive" icon={<TrendingUp size={18} />} />
-              <MetricCard label="Previsao inicial" value={periodMetrics.initialForecastClosingCents} />
-              <MetricCard label="Previsao atual" value={periodMetrics.currentForecastClosingCents} />
-              <MetricCard label="Variacao acumulada" value={periodMetrics.accumulatedVariationCents} tone={periodMetrics.accumulatedVariationCents < 0 ? 'negative' : 'positive'} />
+              <MetricCard label="Previsão inicial" value={periodMetrics.initialForecastClosingCents} />
+              <MetricCard label="Previsão atual" value={periodMetrics.currentForecastClosingCents} />
+              <MetricCard label="Variação acumulada" value={periodMetrics.accumulatedVariationCents} tone={periodMetrics.accumulatedVariationCents < 0 ? 'negative' : 'positive'} />
               <MetricCard
                 label={`Menor saldo (${formatCashFlowDate(periodMetrics.minProjectedBalanceDate)})`}
                 value={periodMetrics.minProjectedBalanceCents}
@@ -292,7 +292,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
             <section className="panel cash-flow-chart-panel cash-flow-balance-panel">
               <div className="cash-flow-panel-heading">
                 <div>
-                  <h3>Saldo diario projetado</h3>
+                  <h3>Saldo diário projetado</h3>
                   <p>
                     {selectedDayDetails
                       ? `${formatCashFlowDate(selectedDayDetails.date)}: ${formatCurrency(selectedDayDetails.projectedBalanceCents)}`
@@ -368,8 +368,8 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
             <section className="panel cash-flow-chart-panel">
               <div className="cash-flow-panel-heading">
                 <div>
-                  <h3>Evolucao da previsao de fechamento</h3>
-                  <p>Snapshots mostram como a previsao mudou ao longo do mes.</p>
+                  <h3>Evolução da previsão de fechamento</h3>
+                  <p>Snapshots mostram como a previsão mudou ao longo do mês.</p>
                 </div>
               </div>
               <ResponsiveContainer width="100%" height={248}>
@@ -387,7 +387,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
                       color: '#f8fbff',
                     }}
                   />
-                  <Line type="monotone" dataKey="previsao" stroke="#5b8dff" strokeWidth={3} dot={{ r: 4, fill: '#5b8dff' }} activeDot={{ r: 7 }} />
+                  <Line type="monotone" dataKey="forecast" stroke="#5b8dff" strokeWidth={3} dot={{ r: 4, fill: '#5b8dff' }} activeDot={{ r: 7 }} />
                 </LineChart>
               </ResponsiveContainer>
             </section>
@@ -395,12 +395,12 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
             <section className="panel cash-flow-summary-panel">
               <div className="cash-flow-panel-heading">
                 <div>
-                  <h3>Variacoes que explicam a mudanca</h3>
-                  <p>O sistema preserva a previsao inicial e registra o impacto de cada alteracao.</p>
+                  <h3>Variações que explicam a mudança</h3>
+                  <p>O sistema preserva a previsão inicial e registra o impacto de cada alteração.</p>
                 </div>
               </div>
               <div className="variation-balance-row">
-                <span>Saldo inicial do periodo</span>
+                <span>Saldo inicial do período</span>
                 <strong>{formatCurrency(periodMetrics.initialForecastClosingCents)}</strong>
               </div>
               {visibleChanges.map((change) => (
@@ -410,7 +410,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
                 </div>
               ))}
               <div className="variation-balance-row total">
-                <span>Previsao atual</span>
+                <span>Previsão atual</span>
                 <strong>{formatCurrency(periodMetrics.currentForecastClosingCents)}</strong>
               </div>
             </section>
@@ -445,7 +445,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
             <div className="cash-flow-panel-heading">
               <div>
                 <h3>Movimentacoes previstas</h3>
-                <p>Tabela unica para debitos e creditos, pronta para receber importacao consolidada.</p>
+                <p>Tabela unica para débitos e créditos, pronta para receber importacao consolidada.</p>
               </div>
               <div className="cash-flow-filter-bar">
                 <label className="cash-flow-search">
@@ -454,8 +454,8 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
                 </label>
                 <select value={movementTypeFilter} onChange={(event) => setMovementTypeFilter(event.target.value as MovementTypeFilter)}>
                   <option value="ALL">Todos</option>
-                  <option value="DEBITO">Debitos</option>
-                  <option value="CREDITO">Creditos</option>
+                  <option value="DEBITO">Débitos</option>
+                  <option value="CREDITO">Créditos</option>
                 </select>
               </div>
             </div>
@@ -466,9 +466,9 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
         {activeTab === 'variations' ? (
           <section className="panel cash-flow-table-panel">
             <div className="variation-overview">
-              <MetricCard label="Variacoes positivas" value={variationTotals.positiveCents} tone="positive" />
-              <MetricCard label="Variacoes negativas" value={variationTotals.negativeCents} tone="negative" />
-              <MetricCard label="Variacao liquida" value={variationTotals.netCents} tone={variationTotals.netCents < 0 ? 'negative' : 'positive'} />
+              <MetricCard label="Variações positivas" value={variationTotals.positiveCents} tone="positive" />
+              <MetricCard label="Variações negativas" value={variationTotals.negativeCents} tone="negative" />
+              <MetricCard label="Variação líquida" value={variationTotals.netCents} tone={variationTotals.netCents < 0 ? 'negative' : 'positive'} />
             </div>
             <div className="cash-flow-change-list">
               {visibleChanges.map((change) => (
@@ -499,8 +499,8 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
           <section className="panel cash-flow-table-panel">
             <div className="cash-flow-panel-heading">
               <div>
-                <h3>Contas bancarias</h3>
-                <p>Defina quais contas entram no saldo disponivel. Contas garantidas podem ficar apenas informativas.</p>
+                <h3>Contas bancárias</h3>
+                <p>Defina quais contas entram no saldo disponível. Contas garantidas podem ficar apenas informativas.</p>
               </div>
               <span className="cash-flow-chip">Saldo considerado: {formatCurrency(periodMetrics.initialBalanceCents)}</span>
             </div>
@@ -519,7 +519,7 @@ export default function CashFlowDashboard({ dataset: sourceDataset }: CashFlowDa
                   </div>
                   <b className={account.balanceCents < 0 ? 'negative-value' : ''}>{formatCurrency(account.balanceCents)}</b>
                   <button type="button" className="account-toggle" onClick={() => toggleBankAccount(account.id)} aria-pressed={account.includeInCash}>
-                    {account.includeInCash ? 'Considera no caixa' : 'Nao considera'}
+                    {account.includeInCash ? 'Considera no caixa' : 'Não considera'}
                   </button>
                 </article>
               ))}
@@ -575,20 +575,20 @@ function DateRangeControl({
       </button>
 
       {isOpen ? (
-        <div className="period-popover" role="dialog" aria-label="Selecionar periodo da previsao">
+        <div className="period-popover" role="dialog" aria-label="Selecionar período da previsão">
           <div className="period-popover-header">
             <div>
-              <strong>Periodo do grafico</strong>
+              <strong>Período do gráfico</strong>
               <small>
                 Base: {formatCashFlowDate(availableStartDate)} ate {formatCashFlowDate(availableEndDate)}
               </small>
             </div>
-            <button type="button" onClick={onClose} aria-label="Fechar filtro de periodo">
+            <button type="button" onClick={onClose} aria-label="Fechar filtro de período">
               x
             </button>
           </div>
 
-          <div className="period-actions" role="group" aria-label="Atalhos de periodo">
+          <div className="period-actions" role="group" aria-label="Atalhos de período">
             {DATE_RANGE_PRESETS.map((option) => (
               <button
                 key={option.value}
@@ -625,7 +625,7 @@ function DateRangeControl({
           </div>
 
           <button type="button" className="period-apply-button" onClick={onClose}>
-            Aplicar periodo
+            Aplicar período
           </button>
         </div>
       ) : null}
@@ -728,7 +728,7 @@ function calculatePeriodMetrics(
 
 function formatPeriodLabel(startDate: string, endDate: string) {
   if (!startDate || !endDate) {
-    return 'Periodo sem datas';
+    return 'Período sem datas';
   }
 
   if (startDate === endDate) {

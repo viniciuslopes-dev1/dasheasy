@@ -36,7 +36,7 @@ describe('AdminLogin', () => {
     fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'secret' } });
     fireEvent.click(screen.getByRole('button', { name: 'Entrar' }));
 
-    expect(await screen.findByText('Esta conta nao possui acesso administrativo.')).toBeTruthy();
+    expect(await screen.findByText('Esta conta não possui acesso administrativo.')).toBeTruthy();
     await waitFor(() => expect(mocks.signOut).toHaveBeenCalled());
     expect(onSignedIn).not.toHaveBeenCalled();
   });

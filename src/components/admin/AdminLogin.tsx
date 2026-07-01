@@ -38,7 +38,7 @@ export default function AdminLogin({ onSignedIn }: AdminLoginProps) {
 
       if (!(await isDashboardAdmin())) {
         await supabase.auth.signOut();
-        setError('Esta conta nao possui acesso administrativo.');
+        setError('Esta conta não possui acesso administrativo.');
         return;
       }
 
@@ -47,7 +47,7 @@ export default function AdminLogin({ onSignedIn }: AdminLoginProps) {
       setError(
         err instanceof Error
           ? err.message
-          : 'Nao foi possivel verificar o acesso administrativo.',
+          : 'Não foi possível verificar o acesso administrativo.',
       );
     } finally {
       setIsSubmitting(false);

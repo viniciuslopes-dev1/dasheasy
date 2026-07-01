@@ -22,7 +22,7 @@ describe('adminAuthorizationService', () => {
     }));
 
     await expect(isDashboardAdmin({ rpc } as never)).rejects.toThrow(
-      'Nao foi possivel verificar a permissao administrativa.',
+      'Não foi possível verificar a permissão administrativa.',
     );
   });
 });

@@ -63,7 +63,7 @@ describe('CashFlowUpload', () => {
       target: { files: [file] },
     });
 
-    await screen.findByText('15 debitos');
+    await screen.findByText('15 débitos');
     fireEvent.click(screen.getByRole('button', { name: 'Salvar rascunho' }));
 
     await waitFor(() => {

@@ -9,6 +9,40 @@ function buildWorkbook(rows: unknown[][]) {
   return workbook;
 }
 
+function buildDetailedWorkbook() {
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet([
+      ['RELATÓRIO DE FLUXO DE CAIXA', null, null, null, null, null],
+      ['Código', 'Banco', 'Débito', null, 'Crédito', 'Saldo'],
+      ['01', 'ITAU - (53395) - POA', null, null, 1000, 1000],
+      ['02', 'ITAU - (19650) - GARANTIDA', -500, null, null, 1000],
+      ['03', 'BRADESCO - (1153)', -100, null, null, 900],
+      ['SALDO INICIAL', null, null, null, null, 900],
+      ['DATA', null, 'Débito', null, 'Crédito', 'Saldo'],
+    ]),
+    'FLUXO DE CAIXA',
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet([
+      ['Nº Documento', 'Data Vencimento', 'Razão Social', 'Valor Total'],
+      ['D-1', '2026-07-01', 'Fornecedor A', 200],
+    ]),
+    'DÉBITO',
+  );
+  XLSX.utils.book_append_sheet(
+    workbook,
+    XLSX.utils.aoa_to_sheet([
+      ['Nº Documento', 'Data Vencimento', 'Razão Social', 'Valor Total'],
+      ['C-1', '2026-07-02', 'Cliente A', 300],
+    ]),
+    'CRÉDITO',
+  );
+  return workbook;
+}
+
 const header = ['Nº Documento', 'Débito/Crédito', 'Razão Social', 'Baixado', 'Previsão', 'Data Vencimento', ' Valor Total '];
 
 describe('cashFlowReportImportService', () => {
@@ -86,5 +120,25 @@ describe('cashFlowReportImportService', () => {
     );
     expect(current.dataset.dailyRows.map((day) => day.date)).toEqual(['2026-07-01', '2026-07-02', '2026-07-03']);
     expect(current.dataset.variations.map((variation) => variation.variationType)).not.toContain('REMOVIDO');
+  });
+
+  it('imports bank balances from the detailed cash flow report header', () => {
+    const result = analyzeCashFlowReportWorkbook(buildDetailedWorkbook(), 'relatorio-fluxo.xlsx');
+
+    expect(result.summary.bankAccountCount).toBe(3);
+    expect(result.dataset.bankAccounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: '02',
+          isGuaranteed: true,
+          includeInCashFlow: false,
+          balanceCents: -50000,
+        }),
+      ]),
+    );
+    expect(result.dataset.initialBalanceCents).toBe(90000);
+    expect(result.dataset.initialBalanceSource).toBe('spreadsheet');
+    expect(result.dataset.dailyRows[0].openingBalanceCents).toBe(90000);
+    expect(result.dataset.dailyRows[1].closingBalanceCents).toBe(100000);
   });
 });

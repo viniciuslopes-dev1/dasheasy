@@ -22,6 +22,19 @@ export interface CashFlowReportMovement {
   rawData: Record<string, unknown>;
 }
 
+export interface CashFlowReportBankAccount {
+  id: string;
+  code: string;
+  bankName: string;
+  accountLabel: string;
+  debitCents?: number | null;
+  creditCents?: number | null;
+  balanceCents: number;
+  runningBalanceCents: number | null;
+  isGuaranteed: boolean;
+  includeInCashFlow: boolean;
+}
+
 export interface CashFlowReportDay {
   date: string;
   openingBalanceCents: number;
@@ -65,6 +78,7 @@ export interface CashFlowReportDataset {
   endDate: string;
   initialBalanceCents: number;
   initialBalanceSource: 'spreadsheet' | 'not_informed';
+  bankAccounts: CashFlowReportBankAccount[];
   movements: CashFlowReportMovement[];
   cashFlowMovements: CashFlowReportMovement[];
   anticipatedMovements: CashFlowReportMovement[];
@@ -93,6 +107,7 @@ export interface CashFlowReportImportSummary {
   debitMovementCount: number;
   creditMovementCount: number;
   anticipatedCount: number;
+  bankAccountCount: number;
   dailyRowCount: number;
   variationCount: number;
   duplicateDocumentCount: number;

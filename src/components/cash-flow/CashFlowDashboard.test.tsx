@@ -27,7 +27,7 @@ describe('CashFlowDashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /01\/06 a 22\/06/ }));
 
-    expect(screen.getByText('Periodo do grafico')).toBeInTheDocument();
+    expect(screen.getByText('Período do gráfico')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '15 dias' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '30 dias' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '60 dias' })).toBeInTheDocument();

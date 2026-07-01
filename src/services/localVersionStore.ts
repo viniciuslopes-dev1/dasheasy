@@ -173,7 +173,7 @@ export function saveLocalCashFlowDraft(dataset: CashFlowDataset, userId?: string
     id: makeId('local-forecast'),
     versionNumber: nextVersionNumber(store.forecast),
     status: 'draft',
-    sourceFileName: dataset.sourceFileName ?? 'previsao-financeira.xlsx',
+    sourceFileName: dataset.sourceFileName ?? 'previsão-financeira.xlsx',
     monthLabel: dataset.monthLabel,
     startDate: dataset.startDate,
     endDate: dataset.endDate,
@@ -279,6 +279,47 @@ export function saveLocalCashFlowReportDraft(
   return version;
 }
 
+export function updateLocalCashFlowReportVersionDataset(
+  versionId: string,
+  dataset: CashFlowReportDataset,
+): CashFlowReportVersion | null {
+  const store = readStore();
+  const entryIndex = store.cashFlow.findIndex((entry) => entry.version.id === versionId);
+  if (entryIndex < 0) {
+    return null;
+  }
+
+  const metrics = calculateCashFlowReportMetrics(dataset);
+  const entry = store.cashFlow[entryIndex];
+  const version: CashFlowReportVersion = {
+    ...entry.version,
+    sourceFileName: dataset.sourceFileName ?? entry.version.sourceFileName,
+    monthLabel: dataset.monthLabel,
+    startDate: dataset.startDate,
+    endDate: dataset.endDate,
+    movementCount: dataset.movements.length,
+    dailyRowCount: dataset.dailyRows.length,
+    anticipatedCount: dataset.anticipatedMovements.length,
+    variationCount: dataset.variations.length,
+    initialBalanceCents: dataset.initialBalanceCents,
+    closingBalanceCents: metrics.closingBalanceCents,
+    dataset,
+    metadata: {
+      ...entry.version.metadata,
+      localTestMode: true,
+      issueCount: dataset.issues.length,
+      bankAccountCount: dataset.bankAccounts.length,
+    },
+  };
+
+  store.cashFlow[entryIndex] = {
+    version,
+    dataset,
+  };
+  writeStore(store);
+  return version;
+}
+
 export function publishLocalCashFlowReportVersion(versionId: string) {
   const store = readStore();
   const now = new Date().toISOString();
@@ -309,4 +350,3 @@ export function publishLocalCashFlowReportVersion(versionId: string) {
   });
   writeStore(store);
 }
-

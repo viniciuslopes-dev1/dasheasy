@@ -44,7 +44,7 @@ export default function CashFlowReportUpload({ userId, baselineDataset, onImport
       setDataset(result.dataset);
       setSummary(result.summary);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel analisar a planilha de fluxo de caixa.');
+      setError(err instanceof Error ? err.message : 'Não foi possível analisar a planilha de fluxo de caixa.');
     } finally {
       setIsAnalyzing(false);
     }
@@ -60,7 +60,7 @@ export default function CashFlowReportUpload({ userId, baselineDataset, onImport
     setSuccess('');
     try {
       if (!isLocalTestMode && supabase && !userId) {
-        throw new Error('Faca login como administrador para salvar a versao.');
+        throw new Error('Faça login como administrador para salvar a versão.');
       }
 
       const version = await saveCashFlowReportDraft(dataset, userId);
@@ -70,10 +70,10 @@ export default function CashFlowReportUpload({ userId, baselineDataset, onImport
           ? 'Rascunho salvo somente neste navegador. Publique para atualizar a visualizacao local.'
           : supabase
           ? 'Rascunho salvo. Publique o fluxo para atualizar o link principal.'
-          : 'Supabase nao configurado: dados carregados apenas para analise.',
+          : 'Supabase não configurado: dados carregados apenas para analise.',
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Nao foi possivel salvar o rascunho do fluxo de caixa.');
+      setError(err instanceof Error ? err.message : 'Não foi possível salvar o rascunho do fluxo de caixa.');
     } finally {
       setIsSaving(false);
     }
@@ -86,7 +86,7 @@ export default function CashFlowReportUpload({ userId, baselineDataset, onImport
       <div className="panel-heading">
         <div>
           <h2>Importar fluxo de caixa</h2>
-          <p>A planilha cria uma nova versao em rascunho. Antecipados ficam fora do calculo diario.</p>
+          <p>A planilha cria uma nova versão em rascunho. Antecipados ficam fora do cálculo diário.</p>
         </div>
         <FileSpreadsheet size={22} />
       </div>
@@ -131,6 +131,10 @@ export default function CashFlowReportUpload({ userId, baselineDataset, onImport
             <div>
               <span>Antecipados</span>
               <strong>{summary.anticipatedCount}</strong>
+            </div>
+            <div>
+              <span>Bancos</span>
+              <strong>{summary.bankAccountCount}</strong>
             </div>
             <div>
               <span>Saldo final</span>

@@ -2172,6 +2172,181 @@ button {
   gap: 8px;
 }
 
+.cash-report-bank-panel {
+  padding: 14px 16px;
+}
+
+.cash-report-bank-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  justify-content: flex-end;
+}
+
+.cash-report-bank-summary span,
+.cash-report-bank-summary small,
+.bank-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border: 1px solid rgba(84, 129, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(30, 82, 207, 0.12);
+  color: #dce7ff;
+  font-size: 0.74rem;
+  font-weight: 900;
+}
+
+.cash-report-bank-wrap {
+  max-height: 190px;
+  margin-top: 12px;
+  overflow: auto;
+  border: 1px solid rgba(112, 132, 165, 0.14);
+  border-radius: 8px;
+  background: rgba(5, 10, 19, 0.24);
+}
+
+.cash-report-bank-wrap::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.cash-report-bank-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(112, 132, 165, 0.28);
+}
+
+.cash-report-table.bank {
+  min-width: 940px;
+  font-size: 0.76rem;
+}
+
+.cash-report-table.bank th,
+.cash-report-table.bank td {
+  padding: 7px 10px;
+}
+
+.cash-report-table.bank th:first-child,
+.cash-report-table.bank td:first-child {
+  width: 72px;
+}
+
+.cash-report-table.bank th:nth-child(3),
+.cash-report-table.bank td:nth-child(3),
+.cash-report-table.bank th:nth-child(4),
+.cash-report-table.bank td:nth-child(4),
+.cash-report-table.bank th:nth-child(5),
+.cash-report-table.bank td:nth-child(5) {
+  text-align: right;
+}
+
+.cash-report-table.bank td:nth-child(2) {
+  text-align: left;
+}
+
+.cash-report-table.bank strong,
+.cash-report-table.bank small {
+  display: block;
+}
+
+.cash-report-table.bank small {
+  margin-top: 2px;
+  color: #8493aa;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.bank-sheet-input {
+  width: 100%;
+  height: 30px;
+  border: 1px solid rgba(112, 132, 165, 0.2);
+  border-radius: 6px;
+  background: rgba(5, 10, 19, 0.5);
+  color: #eaf1ff;
+  padding: 0 8px;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.bank-sheet-input.code {
+  min-width: 52px;
+}
+
+.bank-sheet-input.money {
+  min-width: 108px;
+  text-align: right;
+}
+
+.bank-sheet-input:focus {
+  outline: none;
+  border-color: rgba(84, 129, 255, 0.62);
+  box-shadow: 0 0 0 3px rgba(84, 129, 255, 0.12);
+}
+
+.bank-sheet-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #dce7ff;
+  font-size: 0.74rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.bank-sheet-check input {
+  width: 14px;
+  height: 14px;
+  accent-color: #5b8dff;
+}
+
+.bank-sheet-action {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(84, 129, 255, 0.3);
+  border-radius: 7px;
+  background: rgba(30, 82, 207, 0.24);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.bank-sheet-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.bank-sheet-action.danger {
+  border-color: rgba(255, 154, 141, 0.24);
+  background: rgba(255, 107, 107, 0.12);
+  color: #ffb4aa;
+}
+
+.manual-bank-row td {
+  background: rgba(84, 129, 255, 0.055);
+}
+
+.cash-report-table.bank tr.guaranteed-row td {
+  background: rgba(255, 176, 74, 0.07);
+}
+
+.cash-report-table.bank tr.guaranteed-row td:first-child {
+  box-shadow: inset 3px 0 0 rgba(255, 176, 74, 0.72);
+}
+
+.bank-status.available {
+  border-color: rgba(142, 229, 189, 0.22);
+  background: rgba(44, 164, 111, 0.1);
+  color: #9bf1cb;
+}
+
+.bank-status.guaranteed {
+  border-color: rgba(255, 176, 74, 0.24);
+  background: rgba(255, 176, 74, 0.1);
+  color: #ffd58d;
+}
+
 .cash-flow-metric small {
   display: block;
   margin-top: 4px;
@@ -2250,6 +2425,26 @@ button {
 
 .cash-report-table tr.variation-negative-row td {
   background: rgba(255, 107, 107, 0.08);
+}
+
+.cash-flow-statement-table {
+  min-width: 620px;
+}
+
+.cash-flow-statement-table th,
+.cash-flow-statement-table td {
+  text-align: right;
+}
+
+.cash-flow-statement-table th:first-child,
+.cash-flow-statement-table td:first-child {
+  min-width: 140px;
+}
+
+.cash-flow-balance-row td {
+  background: rgba(112, 132, 165, 0.08);
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .cash-report-table.movement th,
@@ -2743,6 +2938,7 @@ button {
 
   .cash-flow-table-wrap,
   .cash-report-table-wrap,
+  .cash-report-bank-wrap,
   .cash-flow-change-list {
     max-height: none;
   }

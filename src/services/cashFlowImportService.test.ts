@@ -16,7 +16,7 @@ function buildForecastWorkbook({
     workbook,
     XLSX.utils.aoa_to_sheet([
       ['RELATÓRIO DE FLUXO DE CAIXA'],
-      ['Codigo', 'Banco', 'Débito', null, 'Crédito', 'Saldo'],
+      ['Código', 'Banco', 'Débito', null, 'Crédito', 'Saldo'],
       ['01', 'ITAU - CONTA', null, null, 1000, 1000],
       ['SALDO INICIAL', null, null, null, null, 1000],
       ['DATA', null, 'Débito', null, 'Crédito', 'Saldo'],
@@ -44,7 +44,7 @@ describe('cashFlowImportService', () => {
       workbook,
       XLSX.utils.aoa_to_sheet([
         ['RELATÓRIO DE FLUXO DE CAIXA'],
-        ['Codigo', 'Banco', 'Débito', null, 'Crédito', 'Saldo'],
+        ['Código', 'Banco', 'Débito', null, 'Crédito', 'Saldo'],
         ['01', 'ITAU - CONTA', null, null, 1000, 1000],
         ['02', 'ITAU - GARANTIDA', -500, null, null, 1000],
         ['SALDO INICIAL', null, null, null, null, 1000],
@@ -96,7 +96,7 @@ describe('cashFlowImportService', () => {
         debitRows: [['D-1', '2026-06-01', 'Fornecedor A', 100]],
         creditRows: [['C-1', '2026-06-02', 'Cliente A', 50]],
       }),
-      'previsao-dia-1.xlsx',
+      'previsão-dia-1.xlsx',
     ).dataset;
 
     const current = analyzeCashFlowWorkbook(
@@ -111,7 +111,7 @@ describe('cashFlowImportService', () => {
           ['C-2', '2026-06-03', 'Cliente B', 300],
         ],
       }),
-      'previsao-dia-2.xlsx',
+      'previsão-dia-2.xlsx',
       previous,
     ).dataset;
 
